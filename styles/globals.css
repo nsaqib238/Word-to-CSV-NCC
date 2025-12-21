@@ -1,0 +1,75 @@
+/**
+ * Global styles for the Word Processor application
+ */
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Clause highlighting styles */
+.clause-highlight {
+  background-color: yellow;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.clause-highlight:hover {
+  background-color: #ffeb3b;
+}
+
+/* Document viewer styles */
+.document-viewer {
+  line-height: 1.6;
+}
+
+.document-viewer h1,
+.document-viewer h2,
+.document-viewer h3,
+.document-viewer h4,
+.document-viewer h5,
+.document-viewer h6 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: bold;
+}
+
+.document-viewer p {
+  margin-bottom: 1em;
+}
+
+.document-viewer ul,
+.document-viewer ol {
+  margin-bottom: 1em;
+  padding-left: 2em;
+}
+
+.document-viewer table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1em;
+}
+
+.document-viewer table th,
+.document-viewer table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.document-viewer table th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+

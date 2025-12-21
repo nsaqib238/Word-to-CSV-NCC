@@ -1,0 +1,457 @@
+MASTER PROMPT FOR AI CODER — WORD PROCESSOR + CLAUSE HIGHLIGHTER + EXCEL EXPORT
+
+(With Australian NCC / AS/NZS clause regex patterns + best repos)
+
+You are an expert full-stack engineer.
+Build me a local web-based word processor that:
+
+Loads and renders uploaded .docx files with formatting preserved
+
+Detects and highlights clauses automatically (Australian codes & standards style)
+
+Lets the user mark/unmark clauses manually
+
+Shows the document as close as possible to how it appears in Word
+
+Allows export to Excel with:
+
+Column A → clause number
+
+Column B → clause text
+
+Runs on localhost
+
+Provides Upload DOCX + Export Excel buttons
+
+Is simple, clean, and stable (no LLM in this version).
+
+1. Recommended Libraries & GitHub Repos (USE THESE)
+DOCX → HTML (preserve formatting)
+
+Use Mammoth:
+
+Repo: https://github.com/mwilliamson/mammoth.js
+
+NPM: mammoth
+
+Use it on the backend to convert .docx → HTML + plain text.
+
+Backup options (only if needed):
+
+docx-preview
+
+docx (Office OpenXML parser): https://github.com/dolanmiu/docx
+
+But primary choice is Mammoth.
+
+HTML Editor / Viewer with Highlighting
+
+You need a viewer with clickable paragraphs and dynamic highlighting.
+
+Use one of:
+
+React + direct HTML rendering + DOM wrappers (simpler), and/or
+
+TipTap (recommended if you want richer editor-like interactions):
+
+Repo: https://github.com/ueberdosis/tiptap
+
+TipTap makes it easier to add custom marks for clauses, but a plain React viewer with spans/divs is also ok.
+
+Excel Export
+
+Use SheetJS (xlsx):
+
+Repo: https://github.com/SheetJS/sheetjs
+
+NPM: xlsx
+
+UI Components (optional but recommended)
+
+Use Material UI (MUI) for layout, buttons, sidebar:
+
+Repo: https://github.com/mui/material-ui
+
+2. Required Features (All Must Be Implemented)
+A. Upload & Render DOCX
+
+Top bar: “Upload Word File (.docx)” button.
+
+User selects a .docx.
+
+File sent to backend, processed with Mammoth.
+
+Backend returns JSON:
+
+{
+  "html": "<p>Rendered HTML...</p>",
+  "text": "Plain text version of document...",
+  "paragraphs": ["Paragraph 1 text...", "Paragraph 2 text...", "..."]
+}
+
+
+Frontend:
+
+Renders html in a scrollable viewer.
+
+Uses CSS to keep it readable and structured (headings, lists, tables, etc.).
+
+B. Document Viewer
+
+Requirements:
+
+Show the converted HTML.
+
+Maintain:
+
+Headings
+
+Paragraph breaks
+
+Lists
+
+Tables
+
+Bold/italics
+
+Allow:
+
+Highlighting clause paragraphs
+
+Clicking a clause in sidebar scrolls viewer to that location.
+
+Highlight style example:
+
+.clause-highlight {
+  background-color: yellow;
+}
+
+
+Wrap the clause paragraph or clause number with this class.
+
+C. Clause Detection Engine (Australian Codes & Standards)
+
+Implement a regex-based clause detector that works well for:
+
+AS/NZS 3000 and similar AS standards
+
+NCC Volumes 1–3
+
+Appendices and lettered clauses
+
+Simple subclauses like (a), (i) when attached to a clause number
+
+The detection runs after /api/upload-docx returns the text or paragraphs.
+
+2.C.1. General Approach
+
+Work on a paragraph-by-paragraph basis.
+
+For each paragraph:
+
+Try a series of regexes in order of specificity.
+
+If a pattern matches, extract:
+
+clauseNumber
+
+clauseText (remainder of the paragraph)
+
+Filter out obvious false positives (tables, figures, units, dates).
+
+Save each match as a Clause object.
+
+3. Australian Clause Regex Rules (NCC + AS/NZS)
+
+Implement the following patterns (you can adapt to your language, but preserve their intent).
+
+3.1. AS/NZS-style numeric clauses (common to AS3000 etc.)
+
+Examples:
+
+2.6
+
+2.6.3
+
+2.6.3.3
+
+2.6.3.3.2
+
+Regex (numeric clause pattern):
+
+^\s*(\d+(?:\.\d+){1,4})\b[ .\-–:]?(.*)$
+
+
+Group 1: clause number (e.g. 2.6.3.3.2)
+
+Group 2: clause text (rest of the line)
+
+3.2. Letter + number clauses (NCC section references, appendices)
+
+Covers things like:
+
+A.1, A.1.2 (appendix-style)
+
+E2.2, E2.2a (NCC Vol 1)
+
+D1.6, D1.6(a)
+
+FP1.4, EP2.2, CP1, GP5.2 (Performance Requirements)
+
+Regex (lettered clause / NCC clause pattern):
+
+^\s*([A-Z]{1,2}\d+(?:\.\d+)*[a-z]?)\b[ .\-–:]?(.*)$
+
+
+This covers:
+
+E2.2, E2.2a
+
+FP1.4, EP2.2
+
+B1.2, C2.4
+
+A1.0, etc.
+
+3.3. Appendix / Figure-style clauses (A.1.2, B.3.4.1)
+
+For AS/NZS Appendices or some NCC structures:
+
+Regex (appendix numeric pattern):
+
+^\s*([A-Z]\.\d+(?:\.\d+){0,3})\b[ .\-–:]?(.*)$
+
+
+Examples:
+
+A.1
+
+A.1.2
+
+B.3.4.1
+
+3.4. Clauses with subclause suffix like (a), (i) (single-line)
+
+Examples:
+
+D1.6(a) Where...
+
+2.6.3.3.2(a) In New Zealand...
+
+Extend your main patterns to allow trailing subclause parentheses:
+
+^\s*(
+  (?:\d+(?:\.\d+){1,4})              # numeric clause like 2.6.3.3.2
+  |
+  (?:[A-Z]{1,2}\d+(?:\.\d+)*[a-z]?)  # NCC style like E2.2a, FP1.4
+  |
+  (?:[A-Z]\.\d+(?:\.\d+){0,3})       # appendix style like A.1.2
+)
+(\([a-zivx]+\))?                     # optional subclause like (a), (b), (i), (ii)
+\b[ .\-–:]?(.*)$
+
+
+In code, you can write this as a single compiled regex (or a small list):
+
+Group 1 → base clause number (e.g. D1.6, 2.6.3.3.2)
+
+Group 2 → optional subclause (e.g. (a), (i))
+
+Group 3 → clause text
+
+You may choose to treat the full clause number as:
+
+const fullClauseNumber = base + (subclause || "");
+
+3.5. Pure subclause items (a), (i) as nested items (optional)
+
+If a line starts with:
+
+(a), (b), (c)
+
+(i), (ii), (iii)
+
+and appears immediately under a clause, you may want to mark them as subclauses but that’s optional for this version.
+
+If you want it:
+
+^\s*\(([a-z]|[ivx]+)\)\s+(.*)$
+
+
+Store them with a type like subclause, but they do not go into Excel for this first version unless you explicitly decide to.
+
+3.6. Excluding obvious non-clauses
+
+Before accepting a match as a clause, reject lines that look like:
+
+Tables:
+
+start with Table, TABLE, Tab.
+
+e.g. Table 2.4 – Minimum conductor sizes
+
+Figures:
+
+start with Figure, FIGURE, Fig.
+
+e.g. Figure 6.1 – Bathroom zones
+
+Units / capacities:
+
+first number is followed by kW, W, A, V, mm, Hz etc within first 2–3 tokens
+
+e.g. 2.4 kW heater load
+
+Page references:
+
+Page 2, PAGE 5, p. 3
+
+Implement this as post-regex filters:
+
+if line starts with /^(Table|FIGURE|Figure|Tab\.|Fig\.)/i → skip  
+if line matches /^\s*Page\s+\d+/i → skip  
+if within first few tokens we see /(kW|W|A|V|Hz|mm|kg)\b/ → skip as clause
+
+4. Clause Data Model
+
+Keep a list of detected clauses in frontend state:
+
+interface Clause {
+  id: string;               // uuid
+  clauseNumber: string;     // full clause number, e.g. "2.6.3.3.2(a)"
+  text: string;             // clause text (paragraph content with number removed if desired)
+  paragraphIndex: number;   // index into paragraphs array / for scroll linking
+  markedBy: "auto" | "manual";
+}
+
+
+State is updated when:
+
+Auto-detection after upload
+
+User manually marks/unmarks clauses
+
+5. Manual Mark / Unmark Behaviour
+
+Clicking a highlighted clause:
+
+Unmarks it (remove highlight, remove from clauses list).
+
+Clicking an unmarked paragraph (e.g. via a context icon or side button):
+
+Prompts user to:
+
+Enter clause number manually OR
+
+Uses regex to suggest one if pattern is present.
+
+On confirm, adds to clauses with markedBy: "manual" and highlights.
+
+6. Export to Excel (.xlsx)
+
+Use SheetJS (xlsx) on the frontend.
+
+Pseudo-code:
+
+import * as XLSX from "xlsx";
+
+function exportClausesToExcel(clauses: Clause[]) {
+  const rows = clauses.map(c => ({
+    clause_number: c.clauseNumber,
+    clause_text: c.text,
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Clauses");
+  XLSX.writeFile(wb, "clauses.xlsx");
+}
+
+
+Button: “Export Clauses to Excel” calls this.
+
+7. Backend Endpoints
+
+You may use Next.js API routes or an Express backend. At minimum:
+
+POST /api/upload-docx
+
+Receives .docx file via multipart/form-data
+
+Uses Mammoth to convert to HTML + text
+
+Returns JSON with { html, text, paragraphs }
+
+You can optionally do all clause detection on the frontend using text/paragraphs.
+
+Export can be frontend-only using SheetJS, so no backend endpoint is strictly required for Excel.
+
+8. UI Layout Requirements
+
+Layout (high-level):
+
+----------------------------------------------------------
+| Upload DOCX | Export Clauses to Excel                  |
+----------------------------------------------------------
+| Document Viewer (HTML)       | Clause List Sidebar     |
+| - shows formatted doc        | - list of detected      |
+| - clause highlights          |   clauses               |
+| - click paragraphs           | - click → scroll        |
+----------------------------------------------------------
+
+
+Clause list shows:
+
+clauseNumber
+
+Truncated first 60–80 chars of clause text
+
+An “X” or trash icon to unmark
+
+9. Quality Requirements
+
+Must run locally with:
+
+npm install
+npm run dev
+
+
+Must:
+
+Preserve formatting reasonably well using Mammoth
+
+Detect obvious Australian-style clauses (AS/NZS + NCC) using the regex described
+
+Highlight matches visually
+
+Let user correct detection via mark/unmark
+
+Export .xlsx accurately
+
+No AI/LLM integration in this version.
+
+Code must be structured & commented so clause detection rules can be extended later (e.g., for notes/exceptions).
+
+10. Deliverables
+
+You must generate:
+
+A working React / Next.js app with:
+
+Upload DOCX
+
+Render HTML view
+
+Clause detection
+
+Highlighting
+
+Manual mark/unmark
+
+Excel export
+
+Clear instructions to run it locally.
+
+Clear comments where to adjust regex patterns and filters.
+
+If anything is unclear, choose the simplest, stable implementation and document your reasoning in comments.
