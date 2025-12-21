@@ -718,10 +718,10 @@ export async function buildNccUnitsFromHtml(
     return /^[\-\u2013\u2014_•·\*]{2,}$/.test(s);
   };
 
-  const stateVariationRegex = /^(SA|NSW|VIC|QLD|WA|TAS|ACT|NT)\s+([A-Z]\d+\s*[A-Z]\d+(?:\(\d+\))?)(?=\b|to\b)/i;
+  const stateVariationRegex = /^(SA|NSW|VIC|QLD|WA|TAS|ACT|NT)\s+([A-Z]{1,2}\d+\s*[A-Z]?\d*(?:\(\d+\))?)(?=\b|to\b|\s|$)/i;
   // Also catch state markers embedded mid-paragraph (WPS/Adobe conversion sometimes concatenates lines)
-  const stateVariationAnywhereRegex = /\b(SA|NSW|VIC|QLD|WA|TAS|ACT|NT)\s+([A-Z]\d+\s*[A-Z]\d+(?:\(\d+\))?)(?=\b|to\b)/i;
-  const stateAssetRegex = /^(SA|NSW|VIC|QLD|WA|TAS|ACT|NT)\s+(Figure|Table)\s+([A-Z]\d+[A-Z]\d+(?:\(\d+\))?)\b/i;
+  const stateVariationAnywhereRegex = /\b(SA|NSW|VIC|QLD|WA|TAS|ACT|NT)\s+([A-Z]{1,2}\d+\s*[A-Z]?\d*(?:\(\d+\))?)(?=\b|to\b|\s|$)/i;
+  const stateAssetRegex = /^(SA|NSW|VIC|QLD|WA|TAS|ACT|NT)\s+(Figure|Table)\s+([A-Z]{1,2}\d+[A-Z]?\d*(?:\(\d+\))?)(\b|\s|$)/i;
   const insertMarkerRegex = /^(Insert\s+(?:SA\s+)?(?:Table|Figure)\b)/i;
   const tableNotesRegex = /^Table Notes\b/i;
   const applicationsHeaderRegex = /^Applications$/i;
@@ -1621,24 +1621,54 @@ export async function buildNccUnitsFromHtml(
       continue;
     }
 
-    // 1.1 State variation marker (hard stop)
+    // 1.1 State variation marker WITH TITLE/TEXT
+    // FIX: State variations like "NSW J7D3(1)  Artificial lighting" should create actual units, not just markers
     const svm = cleaned.match(stateVariationRegex);
     if (svm) {
-      // RULE A: temporary boundary, NOT a hard end. Do not clear currentUnit.
       const state = svm[1];
-      const label = svm[2];
-
-      // State variation marker rows: if empty (no body), treat as context marker only (pending) and do not emit a searchable row.
-      pendingStateMarkers.set(label, { state, label, paraIndex: block.paraIndex });
-
-      // Also dedupe emitted state markers if you choose to keep them visible (we currently do NOT emit them here).
-      const svKey = `${state}__${label}`;
-      if (emittedStateVariations.has(svKey)) {
+      const rawLabel = svm[2]; // e.g., "J7D3(1)" or "J7D3" or "JP1"
+      
+      // Normalize label: remove spaces
+      const normalizedLabel = rawLabel.replace(/\s+/g, '');
+      
+      // Extract the text AFTER the state variation label (this is the title/heading)
+      const rest = cleaned.substring(svm[0].length).trim();
+      const body = rest.replace(/^[–—:-]\s*/, '').trim();
+      
+      // If there's body text (like "Artificial lighting"), this is a real unit with content
+      if (body) {
+        // Flush any existing unit first
+        flushCurrentUnit();
+        
+        // Classify the unit type from the normalized label
+        const strict = classifyLabelStrict(normalizedLabel);
+        let unitType = strict.unit_type;
+        if (strict.warn) warnings.push(strict.warn);
+        
+        // Mark as state variation
+        warnings.push(`STATE_VARIATION:${state}:${normalizedLabel}`);
+        
+        // Start new unit with the label and title
+        startNewUnit({
+          unit_type: unitType,
+          unit_label: normalizedLabel,
+          title: body.length <= 120 ? body : '',
+          text: body || '', // Start with body, will aggregate subsequent paragraphs
+          paraIndex: block.paraIndex,
+          warnings,
+        });
+        
+        continue;
+      } else {
+        // No body text - treat as marker only
+        pendingStateMarkers.set(normalizedLabel, { state, label: normalizedLabel, paraIndex: block.paraIndex });
+        const svKey = `${state}__${normalizedLabel}`;
+        if (emittedStateVariations.has(svKey)) {
+          continue;
+        }
+        emittedStateVariations.add(svKey);
         continue;
       }
-      emittedStateVariations.add(svKey);
-
-      continue;
     }
 
     // 1.1b Embedded jurisdiction markers
