@@ -12,8 +12,9 @@ import { useMemo, useState } from 'react';
 import { Box, Paper, Tabs, Tab } from '@mui/material';
 import WordProcessor from '@/components/WordProcessor';
 import ExcelProcessor from '@/components/ExcelProcessor';
+import NCCProcessor from '@/components/NCCProcessor';
 
-type ClausesSubTab = 'upload' | 'export' | 'excel';
+type ClausesSubTab = 'upload' | 'export' | 'excel' | 'ncc';
 
 export default function ClausesWorkspace() {
   const [subTab, setSubTab] = useState<ClausesSubTab>('upload');
@@ -22,6 +23,7 @@ export default function ClausesWorkspace() {
     { value: 'upload' as const, label: 'Upload Word File' },
     { value: 'export' as const, label: 'Export to Excel' },
     { value: 'excel' as const, label: 'Excel Processor' },
+    { value: 'ncc' as const, label: 'NCC Processor' },
   ]), []);
 
   return (
@@ -45,6 +47,10 @@ export default function ClausesWorkspace() {
 
       {subTab === 'excel' && (
         <ExcelProcessor />
+      )}
+
+      {subTab === 'ncc' && (
+        <NCCProcessor />
       )}
     </Box>
   );
