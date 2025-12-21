@@ -24,6 +24,7 @@ A comprehensive system for processing National Construction Code (NCC) 2022 docu
 - [Architecture Overview](#architecture-overview)
 - [Complete Project Structure](#complete-project-structure)
 - [Installation & Usage](#installation--usage)
+  - [Run Commands](#run-commands)
 - [Database Loading](#database-loading)
 - [Development Guidelines](#development-guidelines)
 - [Known Limitations](#known-limitations)
@@ -694,6 +695,71 @@ WordProcessor Component State:
    - SheetJS/xlsx (Excel export)
    - TipTap (rich text editor)
    - TypeScript and tsx for CLI scripts
+
+### Run Commands
+
+#### Start Web Interface (Development)
+
+Run the Next.js development server to access the web interface:
+
+```bash
+npm run dev
+```
+
+Then open your browser to [http://localhost:3000](http://localhost:3000)
+
+**Available npm scripts:**
+- `npm run dev` - Start development server (port 3000)
+- `npm run build` - Build for production
+- `npm start` - Start production server
+- `npm run lint` - Run ESLint
+
+#### Run NCC Processing Script (Command Line)
+
+Process NCC documents from the terminal:
+
+```bash
+# Basic command (Volume 2 or 3)
+NODE_OPTIONS='--max-old-space-size=8192 --expose-gc' npx tsx scripts/generate-ncc-csv-optimized.ts \
+  --input <input-file.docx> \
+  --out <output-file.csv> \
+  --doc_id ncc2022 \
+  --volume '<Volume Name>' \
+  --state_variation '' \
+  --version_date 2022
+
+# Example: Process Volume 2
+NODE_OPTIONS='--max-old-space-size=8192 --expose-gc' npx tsx scripts/generate-ncc-csv-optimized.ts \
+  --input Refined_ncc2022-volume-two.docx \
+  --out output/ncc_v2.csv \
+  --doc_id ncc2022 \
+  --volume 'Volume Two' \
+  --state_variation '' \
+  --version_date 2022
+
+# Example: Process Volume 3
+NODE_OPTIONS='--max-old-space-size=8192 --expose-gc' npx tsx scripts/generate-ncc-csv-optimized.ts \
+  --input Refined_ncc2022-volume-three.docx \
+  --out output/ncc_v3.csv \
+  --doc_id ncc2022 \
+  --volume 'Volume Three' \
+  --state_variation '' \
+  --version_date 2022
+
+# For Volume 1 (requires 16GB+ heap)
+NODE_OPTIONS='--max-old-space-size=16384 --expose-gc' npx tsx scripts/generate-ncc-csv-optimized.ts \
+  --input ncc2022-volume-one.docx \
+  --out output/ncc_v1.csv \
+  --doc_id ncc2022 \
+  --volume 'Volume One' \
+  --state_variation '' \
+  --version_date 2022
+```
+
+**Windows PowerShell users:** Use single quotes or escape quotes differently:
+```powershell
+$env:NODE_OPTIONS="--max-old-space-size=8192 --expose-gc"; npx tsx scripts/generate-ncc-csv-optimized.ts --input "Refined_ncc2022-volume-two.docx" --out "output/ncc_v2.csv" --doc_id ncc2022 --volume "Volume Two" --state_variation "" --version_date 2022
+```
 
 ### Command-Line Usage (NCC Processing)
 
