@@ -577,14 +577,15 @@ export default function WordProcessor() {
 
           // Always highlight if clause number is found, or if score is reasonable
           // This ensures ALL clauses are highlighted, not just specific ones
-          const finalHasClauseNumber = bestMatch && clause.clauseNumber &&
-            (bestMatch.textContent?.includes(clause.clauseNumber) ||
-              new RegExp(`\\b${clause.clauseNumber.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(bestMatch.textContent || ''));
+          const bestMatchElement = bestMatch as HTMLElement | null;
+          const finalHasClauseNumber = bestMatchElement && clause.clauseNumber &&
+            (bestMatchElement.textContent?.includes(clause.clauseNumber) ||
+              new RegExp(`\\b${clause.clauseNumber.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(bestMatchElement.textContent || ''));
 
-          if (bestMatch && (bestScore > 20 || finalHasClauseNumber)) {
-            bestMatch.classList.add('clause-highlight');
-            bestMatch.setAttribute('data-paragraph-index', paragraphIndex.toString());
-            bestMatch.style.cursor = 'pointer';
+          if (bestMatchElement && (bestScore > 20 || finalHasClauseNumber)) {
+            bestMatchElement.classList.add('clause-highlight');
+            bestMatchElement.setAttribute('data-paragraph-index', paragraphIndex.toString());
+            bestMatchElement.style.cursor = 'pointer';
           }
         }
       });
@@ -972,14 +973,14 @@ export default function WordProcessor() {
                               {(clause.text || '').substring(0, 80)}
                               {(clause.text || '').length > 80 ? '...' : ''}
                             </Typography>
-                            {clause.notes && clause.notes.length > 0 && (
+                            {clause.notes && Array.isArray(clause.notes) && clause.notes.length > 0 && clause.notes[0] && (
                               <Typography variant="caption" color="info.main" sx={{ display: 'block', mt: 0.5 }}>
-                                Note: {clause.notes[0].substring(0, 50)}...
+                                Note: {clause.notes[0].substring(0, 50)}{clause.notes[0].length > 50 ? '...' : ''}
                               </Typography>
                             )}
-                            {clause.exceptions && clause.exceptions.length > 0 && (
+                            {clause.exceptions && Array.isArray(clause.exceptions) && clause.exceptions.length > 0 && clause.exceptions[0] && (
                               <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
-                                Exception: {clause.exceptions[0].substring(0, 50)}...
+                                Exception: {clause.exceptions[0].substring(0, 50)}{clause.exceptions[0].length > 50 ? '...' : ''}
                               </Typography>
                             )}
                           </Box>

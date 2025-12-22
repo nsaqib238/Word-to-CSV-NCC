@@ -585,7 +585,7 @@ function extractBlocksInOrder(html: string): Block[] {
     Array.from(node.children).forEach(child => walk(child));
   };
 
-  Array.from(body.children).forEach(el => walk(el));
+  Array.from(body.children).forEach(el => walk(el as Element));
   return blocks;
 }
 

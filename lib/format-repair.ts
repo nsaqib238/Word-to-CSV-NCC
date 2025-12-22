@@ -132,7 +132,8 @@ function extractParagraphs(html: string): string[] {
   const paragraphs: string[] = [];
   
   // Extract text from <p> tags
-  const pMatches = html.match(/<p[^>]*>(.*?)<\/p>/gis);
+  // Use [\s\S] instead of . with s flag for ES5 compatibility
+  const pMatches = html.match(/<p[^>]*>([\s\S]*?)<\/p>/gi);
   if (pMatches) {
     pMatches.forEach(match => {
       const text = match
@@ -144,7 +145,7 @@ function extractParagraphs(html: string): string[] {
   }
   
   // Extract text from headings (h1-h6)
-  const headingMatches = html.match(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gis);
+  const headingMatches = html.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi);
   if (headingMatches) {
     headingMatches.forEach(match => {
       const text = match
@@ -156,7 +157,7 @@ function extractParagraphs(html: string): string[] {
   }
   
   // Extract text from list items
-  const liMatches = html.match(/<li[^>]*>(.*?)<\/li>/gis);
+  const liMatches = html.match(/<li[^>]*>([\s\S]*?)<\/li>/gi);
   if (liMatches) {
     liMatches.forEach(match => {
       const text = match

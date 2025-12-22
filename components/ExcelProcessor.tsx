@@ -109,7 +109,7 @@ export default function ExcelProcessor() {
     // Pattern: A.B.C.D,E.F.G where both have multiple segments and E != D
     // Example: 2.4.3.2,2.7.3 (could be 2.4.3.2.2.7.3 OR two separate clauses)
     const ambiguousPattern = /(\d+(?:\.\d+){2,}),(\d+(?:\.\d+){2,})/g;
-    const ambiguousMatches = [...fixed.matchAll(ambiguousPattern)];
+    const ambiguousMatches = Array.from(fixed.matchAll(ambiguousPattern));
 
     for (const match of ambiguousMatches) {
       const left = match[1];

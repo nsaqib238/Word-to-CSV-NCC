@@ -8,7 +8,7 @@ A comprehensive system for processing National Construction Code (NCC) 2022 docu
 - ✅ **AS/NZS Standards**: Process Australian and New Zealand standards documents
 - ✅ **Legal-Grade Extraction**: 100% structural accuracy, 99%+ content accuracy
 - ✅ **State Variations**: Capture jurisdictional variations for NSW, VIC, QLD, SA, WA, TAS, NT, ACT
-- ✅ **Compliance Framework**: Extract OBJECTIVE → FUNCTIONAL_STATEMENT → PERFORMANCE_REQUIREMENT → DTS_PROVISION hierarchies
+- ✅ **Compliance Framework**: Extract OBJECTIVE → FUNCTIONAL_STATEMENT → PERFORMANCE_REQhiUIREMENT → DTS_PROVISION hierarchies
 - ✅ **Database Ready**: 72-column CSV schema optimized for PostgreSQL/MySQL
 - ✅ **Web Interface**: Visual clause highlighter and Excel export tool
 - ✅ **No LLM/AI**: All processing is deterministic and rule-based
