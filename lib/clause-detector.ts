@@ -35,12 +35,12 @@ const CLAUSE_PATTERNS = [
     }
   },
   
-  // Pattern 2: AS/NZS-style numeric clauses (e.g., 1, 2.6, 2.6.3, 2.6.3.3.2)
+  // Pattern 2: AS/NZS-style numeric clauses (e.g., 2.6, 2.6.3, 2.6.3.3.2)
   // More flexible spacing: allows for tabs, multiple spaces, or no separator
-  // Updated to support single-level sections (e.g., "1" or "2") and multi-level clauses
+  // Requires at least ONE dot to avoid matching bare numbers like "1" or "2"
   {
     name: 'numeric_clause',
-    regex: /^\s*(\d+(?:\.\d+){0,4})\s*[ .\-–:]*\s*(.*)$/,
+    regex: /^\s*(\d+(?:\.\d+){1,4})\s*[ .\-–:]*\s*(.*)$/,
     extractGroups: (match: RegExpMatchArray) => ({
       clauseNumber: match[1],
       text: (match[2] || '').trim()
@@ -118,13 +118,10 @@ function shouldExclude(text: string): boolean {
   }
   
   // Exclude very short lines (likely not clauses)
-  // Allow 1-2 character clause numbers like "1" or "2" for section headings
-  if (trimmed.length < 1) {
+  // Minimum 3 characters to allow "1.4" but exclude "1" or "2"
+  if (trimmed.length < 3) {
     return true;
   }
-  
-  // Don't exclude standalone numbers anymore - they could be valid section headings
-  // The regex patterns will handle validation
   
   return false;
 }
