@@ -35,11 +35,12 @@ const CLAUSE_PATTERNS = [
     }
   },
   
-  // Pattern 2: AS/NZS-style numeric clauses (e.g., 2.6, 2.6.3, 2.6.3.3.2)
+  // Pattern 2: AS/NZS-style numeric clauses (e.g., 1, 2.6, 2.6.3, 2.6.3.3.2)
   // More flexible spacing: allows for tabs, multiple spaces, or no separator
+  // Updated to support single-level sections (e.g., "1" or "2") and multi-level clauses
   {
     name: 'numeric_clause',
-    regex: /^\s*(\d+(?:\.\d+){1,4})\s*[ .\-–:]*\s*(.*)$/,
+    regex: /^\s*(\d+(?:\.\d+){0,4})\s*[ .\-–:]*\s*(.*)$/,
     extractGroups: (match: RegExpMatchArray) => ({
       clauseNumber: match[1],
       text: (match[2] || '').trim()
@@ -117,16 +118,13 @@ function shouldExclude(text: string): boolean {
   }
   
   // Exclude very short lines (likely not clauses)
-  // Reduced from 10 to 3 to allow short clause numbers like "2.6" or "E2.2"
-  if (trimmed.length < 3) {
+  // Allow 1-2 character clause numbers like "1" or "2" for section headings
+  if (trimmed.length < 1) {
     return true;
   }
   
-  // Exclude lines that are just a number or number pattern without context
-  // (e.g., "1.4.64" by itself without text is likely not a clause heading)
-  if (/^\s*\d+(?:\.\d+){1,4}\s*$/.test(trimmed)) {
-    return true;
-  }
+  // Don't exclude standalone numbers anymore - they could be valid section headings
+  // The regex patterns will handle validation
   
   return false;
 }
@@ -263,9 +261,10 @@ function detectNoteOrException(paragraph: string): { type: 'note' | 'exception' 
 export function detectAllClauses(paragraphs: string[]): Clause[] {
   const clauses: Clause[] = [];
   
-  // Debug logging (only in development)
-  if (process.env.NODE_ENV === 'development' && paragraphs.length > 0) {
+  // Debug logging (always log first 5 paragraphs to see document structure)
+  if (paragraphs.length > 0) {
     console.log('[Clause Detection] Processing', paragraphs.length, 'paragraphs');
+    console.log('[Clause Detection] First 5 paragraphs:', paragraphs.slice(0, 5));
   }
   
   // First pass: detect all clause headings
@@ -348,13 +347,16 @@ export function detectAllClauses(paragraphs: string[]): Clause[] {
     clauses.push(clauseWithContent);
   });
   
-  if (process.env.NODE_ENV === 'development') {
+  if (clauses.length > 0) {
     console.log('[Clause Detection] Total clauses detected:', clauses.length);
+    console.log('[Clause Detection] First 5 clauses:', clauses.slice(0, 5).map(c => ({ clauseNumber: c.clauseNumber, text: c.text.substring(0, 50) })));
     const withNotes = clauses.filter(c => c.notes && c.notes.length > 0).length;
     const withExceptions = clauses.filter(c => c.exceptions && c.exceptions.length > 0).length;
     if (withNotes > 0 || withExceptions > 0) {
       console.log(`[Clause Detection] Clauses with notes: ${withNotes}, with exceptions: ${withExceptions}`);
     }
+  } else {
+    console.warn('[Clause Detection] ⚠️  NO CLAUSES DETECTED!');
   }
   
   return clauses;
