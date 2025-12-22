@@ -130,13 +130,13 @@ export default async function handler(
       console.log('[Upload] Clean paragraphs count:', paragraphs_clean.length);
     }
 
-    // Only return html_clean to reduce response size (other fields not needed for NCC extraction)
-    // Note: html_clean is still large but required for extraction and viewer
+    // Return html_clean and paragraphs_clean (required by Word Processor for clause detection)
+    // Note: Reduces response from ~4MB to ~2.5MB by excluding html_raw, text_raw, text_clean, paragraphs_raw
     return res.status(200).json({
       success: true,
       data: {
-        html_clean, // Only send what's needed - reduces response from ~4MB to ~2.3MB
-        // Removed: html_raw, text_raw, text_clean, paragraphs_raw, paragraphs_clean (not used by NCC workspace)
+        html_clean,
+        paragraphs_clean, // Required by WordProcessor.tsx for clause detection (line 86, 90)
       },
     });
   } catch (error: any) {
