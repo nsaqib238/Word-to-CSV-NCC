@@ -322,6 +322,9 @@ export default function WordProcessor() {
       XLSX.utils.book_append_sheet(wb, wsTablesRag, 'Tables_RAG');
 
       // Individual table tabs - expand table grid into normal Excel cells
+
+      // Track used sheet names to ensure uniqueness
+      const usedSheetNames = new Set<string>(['Clauses', 'Tables_RAG']);
       tables.forEach((table) => {
         // Parse the table grid from LTE text
         const gridMatch = table.lteText.match(/grid:\n([\s\S]*?)\n\[\/LTE_TABLE\]/);
@@ -372,10 +375,22 @@ export default function WordProcessor() {
 
           if (tableData.length > 0) {
             // Create sheet name from table ID (Excel sheet name limitations)
-            let sheetName = table.id.replace(/[\\\/\?\*\[\]:]/g, '_');
-            if (sheetName.length > 31) {
-              sheetName = sheetName.substring(0, 31);
+            let baseSheetName = table.id.replace(/[\\\/ ?*\[\]:]/g, '_');
+            if (baseSheetName.length > 31) {
+              baseSheetName = baseSheetName.substring(0, 31);
             }
+
+            // Ensure sheet name is unique by adding counter if needed
+            let sheetName = baseSheetName;
+            let counter = 1;
+            while (usedSheetNames.has(sheetName)) {
+              // Add counter suffix, but ensure total length <= 31
+              const suffix = `_${counter}`;
+              const maxBaseLength = 31 - suffix.length;
+              sheetName = baseSheetName.substring(0, maxBaseLength) + suffix;
+              counter++;
+            }
+            usedSheetNames.add(sheetName);
 
             const wsTable = XLSX.utils.aoa_to_sheet(tableData);
             XLSX.utils.book_append_sheet(wb, wsTable, sheetName);
