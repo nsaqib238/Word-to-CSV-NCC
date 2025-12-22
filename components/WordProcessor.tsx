@@ -216,7 +216,10 @@ export default function WordProcessor() {
     if (!documentData) return [];
     // Always use clean paragraphs (original view removed)
     // Clauses are detected from clean paragraphs, so we must use clean for matching
-    return documentData.paragraphs_clean;
+    // Be defensive in case `paragraphs_clean` is missing or not an array
+    return Array.isArray(documentData.paragraphs_clean)
+      ? documentData.paragraphs_clean
+      : [];
   };
 
   /**
@@ -262,16 +265,16 @@ export default function WordProcessor() {
         }
 
         // Prepare notes, exceptions, warnings, jurisdiction text
-        const notesText = c.notes && c.notes.length > 0
+        const notesText = Array.isArray(c.notes) && c.notes.length > 0
           ? c.notes.join('\n\n')
           : '';
-        const exceptionsText = c.exceptions && c.exceptions.length > 0
+        const exceptionsText = Array.isArray(c.exceptions) && c.exceptions.length > 0
           ? c.exceptions.join('\n\n')
           : '';
-        const warningsText = c.warnings && c.warnings.length > 0
+        const warningsText = Array.isArray(c.warnings) && c.warnings.length > 0
           ? c.warnings.join('\n\n')
           : '';
-        const jurisdictionText = c.jurisdiction && c.jurisdiction.length > 0
+        const jurisdictionText = Array.isArray(c.jurisdiction) && c.jurisdiction.length > 0
           ? c.jurisdiction.join('\n\n')
           : '';
 
@@ -413,13 +416,20 @@ export default function WordProcessor() {
   // Clauses are detected from clean paragraphs, so we must use clean for matching
   const currentParagraphs = useMemo(() => {
     if (!documentData) return [];
-    return documentData.paragraphs_clean;
+    return Array.isArray(documentData.paragraphs_clean)
+      ? documentData.paragraphs_clean
+      : [];
   }, [documentData]);
 
   // Optimized paragraph matching with early exit
   const findParagraphIndex = useCallback((textContent: string, paragraphs: string[], assignedIndices: Set<number>): number => {
     const trimmedContent = textContent.trim();
     if (!trimmedContent) return -1;
+
+    // Extra safety: if paragraphs is missing or not an array, bail out
+    if (!Array.isArray(paragraphs) || paragraphs.length === 0) {
+      return -1;
+    }
 
     // First, try exact match (fastest) - prefer unassigned indices
     const exactIndex = paragraphs.findIndex((p, idx) => {
@@ -959,8 +969,8 @@ export default function WordProcessor() {
                                 WebkitBoxOrient: 'vertical',
                               }}
                             >
-                              {clause.text.substring(0, 80)}
-                              {clause.text.length > 80 ? '...' : ''}
+                              {(clause.text || '').substring(0, 80)}
+                              {(clause.text || '').length > 80 ? '...' : ''}
                             </Typography>
                             {clause.notes && clause.notes.length > 0 && (
                               <Typography variant="caption" color="info.main" sx={{ display: 'block', mt: 0.5 }}>
