@@ -41,9 +41,10 @@ export default function ClausesWorkspace() {
       </Paper>
 
       {/* Upload + Export are the same underlying workspace; Export tab is a shortcut. */}
-      {(subTab === 'upload' || subTab === 'export') && (
+      {/* Keep component mounted to preserve state across tab switches */}
+      <Box sx={{ display: (subTab === 'upload' || subTab === 'export') ? 'block' : 'none' }}>
         <WordProcessor />
-      )}
+      </Box>
 
       {subTab === 'excel' && (
         <ExcelProcessor />
