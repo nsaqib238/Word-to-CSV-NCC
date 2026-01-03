@@ -1,0 +1,281 @@
+#Routes the question to the correct NCC volume/section/part/schedule
+#Forces the answer to cover the technical aspects that matter for that topic (and refuses if evidence isn't present)
+
+ncc_answer_coverage_map:
+  version: 2022
+
+  global_guardrails:
+    evidence_required: true
+    must_cite:
+      - volume
+      - section_code_or_schedule
+      - unit_label_or_clause_id
+    if_no_evidence_must_say: "NOT FOUND IN NCC EVIDENCE (NO HALLUCINATION)"
+    refuse_if_volume_mismatch: true
+    never_guess_numbers: true
+
+  # -------------------------
+  # VOLUME 1 (Class 2–9)
+  # -------------------------
+  volumes:
+    - volume: Vol1
+      topics:
+        # Section A - Governing
+        - topic_id: VOL1_A0
+          route:
+            section_code: "A"
+            part_codes: ["A0"]
+            disciplines: ["Governing"]
+        - topic_id: VOL1_A1
+          route:
+            section_code: "A"
+            part_codes: ["A1"]
+            disciplines: ["Governing"]
+        - topic_id: VOL1_A2
+          route:
+            section_code: "A"
+            part_codes: ["A2"]
+            disciplines: ["Governing"]
+        - topic_id: VOL1_A3
+          route:
+            section_code: "A"
+            part_codes: ["A3"]
+            disciplines: ["Governing"]
+        - topic_id: VOL1_A4
+          route:
+            section_code: "A"
+            part_codes: ["A4"]
+            disciplines: ["Governing"]
+        - topic_id: VOL1_A5
+          route:
+            section_code: "A"
+            part_codes: ["A5"]
+            disciplines: ["Governing"]
+        - topic_id: VOL1_A6
+          route:
+            section_code: "A"
+            part_codes: ["A6"]
+            disciplines: ["Governing"]
+
+        # Section B - Structural
+        - topic_id: VOL1_B1
+          route:
+            section_code: "B"
+            part_codes: ["B1"]
+            disciplines: ["Structural"]
+        - topic_id: VOL1_B2
+          route:
+            section_code: "B"
+            part_codes: ["B2"]
+            disciplines: ["Structural"]
+
+        # Section C - Fire
+        - topic_id: VOL1_C1
+          route:
+            section_code: "C"
+            part_codes: ["C1"]
+            disciplines: ["Fire", "Structural"]
+        - topic_id: VOL1_C2
+          route:
+            section_code: "C"
+            part_codes: ["C2"]
+            disciplines: ["Fire"]
+        - topic_id: VOL1_C3
+          route:
+            section_code: "C"
+            part_codes: ["C3"]
+            disciplines: ["Fire"]
+        - topic_id: VOL1_C4
+          route:
+            section_code: "C"
+            part_codes: ["C4"]
+            disciplines: ["Fire"]
+        - topic_id: VOL1_C5
+          route:
+            section_code: "C"
+            part_codes: ["C5"]
+            disciplines: ["Fire"]
+
+        # Section D - Access & Egress / Disability Access
+        - topic_id: VOL1_D1
+          route:
+            section_code: "D"
+            part_codes: ["D1"]
+            disciplines: ["AccessEgress"]
+        - topic_id: VOL1_D2
+          route:
+            section_code: "D"
+            part_codes: ["D2"]
+            disciplines: ["AccessEgress"]
+        - topic_id: VOL1_D3
+          route:
+            section_code: "D"
+            part_codes: ["D3"]
+            disciplines: ["DisabilityAccess"]
+        - topic_id: VOL1_D4
+          route:
+            section_code: "D"
+            part_codes: ["D4"]
+            disciplines: ["DisabilityAccess"]
+
+        # Section E - Fire Safety Systems
+        - topic_id: VOL1_E1
+          route:
+            section_code: "E"
+            part_codes: ["E1"]
+            disciplines: ["Fire"]
+        - topic_id: VOL1_E2
+          route:
+            section_code: "E"
+            part_codes: ["E2"]
+            disciplines: ["Fire"]
+        - topic_id: VOL1_E3
+          route:
+            section_code: "E"
+            part_codes: ["E3"]
+            disciplines: ["Fire", "Mechanical"]
+        - topic_id: VOL1_E4
+          route:
+            section_code: "E"
+            part_codes: ["E4"]
+            disciplines: ["Electrical", "Fire"]
+
+        # Section F - Building Services
+        - topic_id: VOL1_F1
+          route:
+            section_code: "F"
+            part_codes: ["F1"]
+            disciplines: ["Building"]
+        - topic_id: VOL1_F2
+          route:
+            section_code: "F"
+            part_codes: ["F2"]
+            disciplines: ["Hydraulics"]
+        - topic_id: VOL1_F3
+          route:
+            section_code: "F"
+            part_codes: ["F3"]
+            disciplines: ["Mechanical"]
+        - topic_id: VOL1_F4
+          route:
+            section_code: "F"
+            part_codes: ["F4"]
+            disciplines: ["Building"]
+        - topic_id: VOL1_F5
+          route:
+            section_code: "F"
+            part_codes: ["F5"]
+            disciplines: ["Building"]
+
+        # Section G - Ancillary Provisions
+        - topic_id: VOL1_G1
+          route:
+            section_code: "G"
+            part_codes: ["G1"]
+            disciplines: ["Structural"]
+        - topic_id: VOL1_G2
+          route:
+            section_code: "G"
+            part_codes: ["G2"]
+            disciplines: ["Building"]
+        - topic_id: VOL1_G3
+          route:
+            section_code: "G"
+            part_codes: ["G3"]
+            disciplines: ["Electrical"]
+        - topic_id: VOL1_G4
+          route:
+            section_code: "G"
+            part_codes: ["G4"]
+            disciplines: ["Mechanical"]
+        - topic_id: VOL1_G5
+          route:
+            section_code: "G"
+            part_codes: ["G5"]
+            disciplines: ["Building"]
+
+        # Section H - Special Use Buildings
+        - topic_id: VOL1_H1
+          route:
+            section_code: "H"
+            part_codes: ["H1"]
+            disciplines: ["Structural"]
+        - topic_id: VOL1_H2
+          route:
+            section_code: "H"
+            part_codes: ["H2"]
+            disciplines: ["Building"]
+        - topic_id: VOL1_H3
+          route:
+            section_code: "H"
+            part_codes: ["H3"]
+            disciplines: ["Fire"]
+        - topic_id: VOL1_H4
+          route:
+            section_code: "H"
+            part_codes: ["H4"]
+            disciplines: ["Fire", "Mechanical"]
+        - topic_id: VOL1_H5
+          route:
+            section_code: "H"
+            part_codes: ["H5"]
+            disciplines: ["Fire"]
+        - topic_id: VOL1_H6
+          route:
+            section_code: "H"
+            part_codes: ["H6"]
+            disciplines: ["Energy"]
+
+        # Section I - Energy Efficiency
+        - topic_id: VOL1_I1
+          route:
+            section_code: "I"
+            part_codes: ["I1"]
+            disciplines: ["Energy"]
+
+        # Section J - Energy Efficiency (continued)
+        - topic_id: VOL1_J1
+          route:
+            section_code: "J"
+            part_codes: ["J1"]
+            disciplines: ["Energy"]
+        - topic_id: VOL1_J2
+          route:
+            section_code: "J"
+            part_codes: ["J2"]
+            disciplines: ["Energy"]
+        - topic_id: VOL1_J3
+          route:
+            section_code: "J"
+            part_codes: ["J3"]
+            disciplines: ["Energy"]
+        - topic_id: VOL1_J4
+          route:
+            section_code: "J"
+            part_codes: ["J4"]
+            disciplines: ["Energy"]
+        - topic_id: VOL1_J5
+          route:
+            section_code: "J"
+            part_codes: ["J5"]
+            disciplines: ["Energy"]
+        - topic_id: VOL1_J6
+          route:
+            section_code: "J"
+            part_codes: ["J6"]
+            disciplines: ["Energy"]
+        - topic_id: VOL1_J7
+          route:
+            section_code: "J"
+            part_codes: ["J7"]
+            disciplines: ["Energy", "Electrical"]
+        - topic_id: VOL1_J8
+          route:
+            section_code: "J"
+            part_codes: ["J8"]
+            disciplines: ["Energy", "Hydraulics", "Mechanical"]
+        - topic_id: VOL1_J9
+          route:
+            section_code: "J"
+            part_codes: ["J9"]
+            disciplines: ["Energy"]

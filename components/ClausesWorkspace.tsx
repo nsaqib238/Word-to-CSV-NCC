@@ -2,28 +2,22 @@
  * Clauses Workspace
  *
  * This is the "Clauses" tab content on the Title Page.
- * It contains the 3 sub-tabs: Upload Word File / Export to Excel / Excel Processor.
- *
- * Note: Upload + Export are two views over the same Word Processor component;
- * the Export tab is mainly a convenience entry point.
+ * It contains 2 sub-tabs: Upload Word File / Excel Processor.
  */
 
 import { useMemo, useState } from 'react';
 import { Box, Paper, Tabs, Tab } from '@mui/material';
 import WordProcessor from '@/components/WordProcessor';
 import ExcelProcessor from '@/components/ExcelProcessor';
-import NCCProcessor from '@/components/NCCProcessor';
 
-type ClausesSubTab = 'upload' | 'export' | 'excel' | 'ncc';
+type ClausesSubTab = 'upload' | 'excel';
 
 export default function ClausesWorkspace() {
   const [subTab, setSubTab] = useState<ClausesSubTab>('upload');
 
   const tabs = useMemo(() => ([
     { value: 'upload' as const, label: 'Upload Word File' },
-    { value: 'export' as const, label: 'Export to Excel' },
     { value: 'excel' as const, label: 'Excel Processor' },
-    { value: 'ncc' as const, label: 'NCC Processor' },
   ]), []);
 
   return (
@@ -40,18 +34,13 @@ export default function ClausesWorkspace() {
         </Tabs>
       </Paper>
 
-      {/* Upload + Export are the same underlying workspace; Export tab is a shortcut. */}
       {/* Keep component mounted to preserve state across tab switches */}
-      <Box sx={{ display: (subTab === 'upload' || subTab === 'export') ? 'block' : 'none' }}>
+      {subTab === 'upload' && (
         <WordProcessor />
-      </Box>
+      )}
 
       {subTab === 'excel' && (
         <ExcelProcessor />
-      )}
-
-      {subTab === 'ncc' && (
-        <NCCProcessor />
       )}
     </Box>
   );

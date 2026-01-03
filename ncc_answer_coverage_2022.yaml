@@ -1,0 +1,1654 @@
+#Routes the question to the correct NCC volume/section/part/schedule
+#Forces the answer to cover the technical aspects that matter for that topic (and refuses if evidence isn’t present)
+
+ncc_answer_coverage_map:
+  version: 2022
+
+  global_guardrails:
+    evidence_required: true
+    must_cite:
+      - volume
+      - section_code_or_schedule
+      - unit_label_or_clause_id
+    if_no_evidence_must_say: "NOT FOUND IN NCC EVIDENCE (NO HALLUCINATION)"
+    refuse_if_volume_mismatch: true
+    never_guess_numbers: true
+
+  # -------------------------
+  # VOLUME 1 (Class 2–9)
+  # -------------------------
+  volumes:
+    - volume: Vol1
+      topics:
+
+        # --- ACCESS FOR PEOPLE WITH A DISABILITY (Section D + Access Provisions) ---
+        - topic_id: VOL1_ACCESSIBLE_PATH_OF_TRAVEL
+          intent_keywords:
+            - "accessible path of travel"
+            - "access for people with disability"
+            - "accessible exit"
+            - "disability access egress"
+            - "wheelchair access to exit"
+            - "accessible evacuation"
+            - "people with disability"
+            - "people with a disability"
+            - "disability access"
+            - "accessible path"
+            - "accessible route"
+            - "accessible means of egress"
+            - "accessible way"
+            - "every exit"
+            - "all exits"
+            - "each exit"
+            - "required exit"
+            - "exit accessible"
+            - "exit need to be accessible"
+            - "accessible to exit"
+            - "accessible egress"
+          # Require at least 2 keywords to match (prevents false positives from generic "access")
+          min_keyword_matches: 2
+
+          route:
+            section_code: "D"
+            part_codes: ["D1", "D2", "D3", "D4"]
+            exclude_keywords: ["carparking", "parking", "car park", "car parking"]
+            disciplines: ["DisabilityAccess"]
+            allowed_unit_types:
+              - "PERFORMANCE_REQUIREMENT"
+              - "DTS_PROVISION"
+              - "VERIFICATION_METHOD"
+
+          # These are CONDITIONS that MUST be satisfied for a valid answer
+          required_aspects:
+          - access_trigger_condition
+          - building_class
+          - accessible_area_or_space
+          - path_of_travel_scope
+          - accessible_exit_requirement
+          - evidence_citation
+
+          aspect_extractors:
+
+            access_trigger_condition:
+              patterns:
+                - "where access for people with a disability is required"
+                - "required to be accessible"
+                - "accessible areas"
+                - "access provisions apply"
+
+            building_class:
+              patterns:
+                - "Class\\s*(1b|2|3|4|5|6|7[a-b]?|8|9[a-c]?)"
+
+            accessible_area_or_space:
+              patterns:
+                - "accessible area"
+                - "public area"
+                - "common area"
+                - "accessible floor"
+                - "storey required to be accessible"
+
+            path_of_travel_scope:
+              patterns:
+                - "to and within a building"
+                - "from accessible areas"
+                - "along an accessible path of travel"
+                - "continuous accessible path"
+
+            accessible_exit_requirement:
+              patterns:
+                - "accessible exit"
+                - "exit required to be accessible"
+                - "evacuation for people with a disability"
+
+            evidence_citation:
+              patterns:
+                - "Performance Requirement"
+                - "D3\\."
+                - "D4\\."
+                - "Specification D"
+                - "AS 1428"
+                - "Access to buildings"
+
+          guardrails:
+            # HARD NCC SAFETY RULES
+            disallow_volumes: ["Vol2", "Vol3"]
+
+            # Accessibility answers MUST state the trigger
+            must_match:
+              - "access_trigger_condition"
+
+            # Prevent vague / aspirational answers
+            disallow_if_only_unit_type:
+              - "INTRODUCTORY_PROVISION"
+
+            # Numeric rules are not mandatory here unless explicitly asked
+            if_missing_must_say:
+              - "ACCESSIBLE PATH OF TRAVEL IS ONLY REQUIRED WHERE DISABILITY ACCESS IS TRIGGERED UNDER NCC VOL 1"
+
+            # Prevent universal accessibility claims for exits
+            custom_rules:
+              - rule: "ACCESSIBLE_EXIT_NOT_UNIVERSAL"
+                logic:
+                  if_question_contains: ["every exit", "all exits", "each exit"]
+                  must_include_phrase:
+                    - "only exits required to be accessible"
+                    - "where access for people with a disability is required"
+                  disallow_phrases:
+                    - "every required exit must be accessible"
+                    - "all exits must be accessible"
+
+
+        # --- ACCESS & EGRESS: TRAVEL DISTANCE LIMITS (Section D) ---
+        - topic_id: VOL1_EGRESS_TRAVEL_DISTANCE
+          intent_keywords: ["maximum travel distance", "travel distance limit", "distance to exit", "maximum travel", "egress distance limit", "travel distance requirement"]
+          route:
+            section_code: "D"
+            disciplines: ["AccessEgress"]
+            allowed_unit_types: ["DTS_PROVISION", "VERIFICATION_METHOD", "PERFORMANCE_REQUIREMENT"]
+          required_aspects:
+            - building_class
+            - space_type_or_room_type
+            - numeric_limit_m
+            - path_conditions
+            - exceptions_and_alternatives
+            - evidence_citation
+          aspect_extractors:
+            building_class: { patterns: ["Class\\s*([2-9]|10[a-z]?)"] }
+            space_type_or_room_type: { patterns: ["corridor", "room", "storey", "basement", "fire-isolated stair", "fire-isolated ramp"] }
+            numeric_limit_m: { patterns: ["\\b\\d+\\s*m", "\\b\\d+\\.?\\d*\\s*metre"] }
+            path_conditions: { patterns: ["sprinklered", "non-sprinklered", "multiple exits", "single exit"] }
+            exceptions_and_alternatives: { patterns: ["except", "alternative", "variation", "does not apply"] }
+            evidence_citation: { patterns: ["D2\\.", "D1\\.", "Specification", "Table D", "Figure D"] }
+          guardrails:
+            disallow_volumes: ["Vol2", "Vol3"]
+            must_match: ["numeric_limit_m"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL1 EGRESS TRAVEL DISTANCE EVIDENCE"]
+
+        # --- ACCESS & EGRESS: TRAVEL DISTANCE MEASUREMENT (Section D) ---
+        - topic_id: VOL1_EGRESS_TRAVEL_DISTANCE_MEASUREMENT
+          intent_keywords: ["measured", "how is travel distance measured", "path of travel measured", "shortest path", "from any point", "point of choice"]
+          route:
+            section_code: "D"
+            disciplines: ["AccessEgress"]
+            allowed_unit_types: ["DTS_PROVISION", "VERIFICATION_METHOD"]
+          required_aspects:
+            - measurement_start_point
+            - measurement_path_rule
+            - measurement_end_point
+            - evidence_citation
+          aspect_extractors:
+            measurement_start_point: { patterns: ["from any point", "from the furthest point", "from a point", "from the doorway"] }
+            measurement_path_rule: { patterns: ["along the path of travel", "shortest path", "to a point of choice", "to an exit"] }
+            measurement_end_point: { patterns: ["exit", "point of choice", "discharge", "fire-isolated exit"] }
+            evidence_citation: { patterns: ["\\bD\\d+[A-Z]?\\d+\\b", "D2\\.", "travel distance", "point of choice"] }
+          guardrails:
+            disallow_volumes: ["Vol2", "Vol3"]
+            disallow_if_only_unit_type: ["INTRODUCTORY_PROVISION"]
+            must_match: ["measurement_path_rule"]
+            if_missing_must_say: ["NOT FOUND IN NCC EVIDENCE (NO HALLUCINATION)"]
+
+        # --- FIRE-ISOLATED EXIT DISCHARGE (Section D) ---
+        - topic_id: VOL1_FIRE_ISOLATED_EXIT_DISCHARGE
+          intent_keywords: ["fire-isolated exit", "exit discharge", "discharge to", "discharge point", "safe place", "place of safety"]
+          min_keyword_matches: 2
+          route:
+            section_code: "D"
+            disciplines: ["AccessEgress", "Fire"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT", "VERIFICATION_METHOD"]
+          required_aspects:
+            - discharge_location_rule
+            - evidence_citation
+          aspect_extractors:
+            discharge_location_rule:
+              patterns: ["discharge", "safe place", "place of safety", "to open space", "to road", "directly to"]
+            evidence_citation:
+              patterns: ["\\bD\\d+[A-Z]?\\d+\\b", "D1\\.", "D2\\.", "D3\\.", "Exit", "Discharge"]
+          guardrails:
+            disallow_volumes: ["Vol2", "Vol3"]
+            disallow_if_only_unit_type: ["INTRODUCTORY_PROVISION"]
+            must_match: ["discharge_location_rule"]
+            if_missing_must_say: ["NOT FOUND IN NCC EVIDENCE (NO HALLUCINATION)"]
+
+        # --- FIRE SAFETY: PROTECTION OF OPENINGS (Section C) ---
+        - topic_id: VOL1_FIRE_PROTECTION_OF_OPENINGS
+          intent_keywords: ["fire door", "smoke door", "fire window", "shutter", "protection of openings", "opening protection"]
+          route:
+            section_code: "C"
+            disciplines: ["Fire"]
+            allowed_unit_types: ["DTS_PROVISION", "VERIFICATION_METHOD", "PERFORMANCE_REQUIREMENT"]
+          required_aspects:
+            - opening_type
+            - fire_resistance_level
+            - smoke_sealing_requirements
+            - hardware_requirements
+            - wall_type
+            - location_in_building
+            - evidence_citation
+          aspect_extractors:
+            opening_type: { patterns: ["door", "window", "shutter", "hatch"] }
+            fire_resistance_level: { patterns: ["FRL", "\\b\\d/-/\\d", "\\b\\d\\/\\d\\/\\d"] }
+            smoke_sealing_requirements: { patterns: ["smoke-sealed", "smoke door", "smoke control"] }
+            hardware_requirements: { patterns: ["self-closing", "automatic closing", "hold-open device", "latch", "hinge"] }
+            wall_type: { patterns: ["fire wall", "fire-resisting wall", "smoke-proof wall", "shaft wall"] }
+            location_in_building: { patterns: ["exit", "fire-isolated stair", "corridor", "shaft", "fire compartment"] }
+            evidence_citation: { patterns: ["C3\\.", "Specification 12", "Spec12", "Table C", "Figure C"] }
+          guardrails:
+            disallow_volumes: ["Vol2", "Vol3"]
+            must_match: ["opening_type"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL1 FIRE PROTECTION OF OPENINGS EVIDENCE"]
+
+        # --- FRL NOTATION MEANING (Section C) ---
+        - topic_id: VOL1_FRL_NOTATION_MEANING
+          intent_keywords: ["FRL expressed", "x/y/z", "fire resistance level format", "structural adequacy integrity insulation", "meaning of FRL"]
+          route:
+            section_code: "C"
+            disciplines: ["Fire"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT", "VERIFICATION_METHOD", "DEFINITION", "SPECIFICATION_CLAUSE"]
+          required_aspects:
+            - frl_components_definition
+            - evidence_citation
+          aspect_extractors:
+            frl_components_definition:
+              patterns: ["structural adequacy", "integrity", "insulation", "minutes", "FRL", "\\d+\\s*/\\s*\\d+\\s*/\\s*\\d+"]
+            evidence_citation:
+              patterns: ["\\bC\\d+[A-Z]?\\d+\\b", "Specification\\s*\\d+", "FRL", "structural adequacy"]
+          guardrails:
+            disallow_volumes: ["Vol2", "Vol3"]
+            disallow_if_only_unit_type: ["INTRODUCTORY_PROVISION"]
+            must_match: ["frl_components_definition"]
+            if_missing_must_say: ["NOT FOUND IN NCC EVIDENCE (NO HALLUCINATION)"]
+
+        # --- EMERGENCY LIGHTING (Section E) ---
+        - topic_id: VOL1_EMERGENCY_LIGHTING
+          intent_keywords: ["emergency lighting", "emergency luminaire", "exit sign", "emergency evacuation lighting", "Class 6 emergency lighting"]
+          route:
+            section_code: "E"
+            disciplines: ["Electrical", "Fire"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT", "VERIFICATION_METHOD"]
+          required_aspects:
+            - building_class
+            - trigger_condition
+            - coverage_locations
+            - evidence_citation
+          aspect_extractors:
+            building_class: { patterns: ["Class\\s*(2|3|4|5|6|7[a-b]?|8|9[a-c]?)"] }
+            trigger_condition: { patterns: ["required", "must be provided", "where", "if"] }
+            coverage_locations: { patterns: ["exit", "path of travel", "stairway", "ramp", "corridor", "public area"] }
+            evidence_citation: { patterns: ["\\bE\\d+[A-Z]?\\d+\\b", "E4\\.", "emergency lighting", "exit signs"] }
+          guardrails:
+            disallow_volumes: ["Vol2", "Vol3"]
+            disallow_if_only_unit_type: ["INTRODUCTORY_PROVISION"]
+            must_match: ["trigger_condition"]
+            if_missing_must_say: ["NOT FOUND IN NCC EVIDENCE (NO HALLUCINATION)"]
+
+        # --- ENERGY EFFICIENCY: BUILDING FABRIC (Section J, J4) ---
+        - topic_id: VOL1_ENERGY_BUILDING_FABRIC
+          intent_keywords: ["thermal envelope", "insulation", "u-value", "r-value", "thermal performance", "building fabric", "glazing", "facade performance"]
+          route:
+            section_code: "J"
+            disciplines: ["Energy"]
+            allowed_unit_types: ["DTS_PROVISION", "VERIFICATION_METHOD", "PERFORMANCE_REQUIREMENT"]
+          required_aspects:
+            - building_class
+            - climate_zone
+            - construction_type
+            - glazing_type
+            - insulation_requirements
+            - thermal_performance_metrics
+            - evidence_citation
+          aspect_extractors:
+            building_class: { patterns: ["Class\\s*([2-9]|10[a-z]?)"] }
+            climate_zone: { patterns: ["Climate Zone\\s*\\d+", "CZ\\s*\\d+"] }
+            construction_type: { patterns: ["lightweight", "masonry", "curtain wall", "tilt-up panel", "framed", "mass wall"] }
+            glazing_type: { patterns: ["single glazing", "double glazing", "triple glazing", "low-e", "tinted", "clear"] }
+            insulation_requirements: { patterns: ["R-\\d+\\.?\\d*", "minimum R-value", "continuous insulation"] }
+            thermal_performance_metrics: { patterns: ["U-Value", "SHGC", "solar heat gain", "thermal transmittance"] }
+            evidence_citation: { patterns: ["J4\\.", "Specification 33", "Spec33", "Table J", "Figure J"] }
+          guardrails:
+            disallow_volumes: ["Vol2", "Vol3"]
+            must_match: ["building_class", "climate_zone"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL1 ENERGY BUILDING FABRIC EVIDENCE"]
+
+        # --- ENERGY EFFICIENCY: ARTIFICIAL LIGHTING & POWER (J7) ---
+        - topic_id: VOL1_ENERGY_LIGHTING_POWER
+          intent_keywords: ["lighting power density", "LPD", "artificial lighting", "power allowance", "daylight control", "lighting control", "motion sensor", "occupancy sensor"]
+          route:
+            section_code: "J"
+            disciplines: ["Energy", "Electrical"]
+            allowed_unit_types: ["DTS_PROVISION", "VERIFICATION_METHOD", "PERFORMANCE_REQUIREMENT"]
+          required_aspects:
+            - building_class
+            - space_type_or_room_type
+            - lighting_control_strategy
+            - power_density_limits
+            - sensor_requirements
+            - evidence_citation
+          aspect_extractors:
+            building_class: { patterns: ["Class\\s*([2-9]|10[a-z]?)"] }
+            space_type_or_room_type: { patterns: ["office", "corridor", "carpark", "warehouse", "classroom", "retail", "toilet", "meeting room"] }
+            lighting_control_strategy: { patterns: ["daylight sensing", "photosensor", "occupancy sensor", "time switch", "manual control"] }
+            power_density_limits: { patterns: ["W/m2", "watts per square metre"] }
+            sensor_requirements: { patterns: ["motion sensor", "occupancy sensor", "automatic off", "automatic dimming"] }
+            evidence_citation: { patterns: ["J7\\.", "Table J7", "Specification 40", "Spec40"] }
+          guardrails:
+            disallow_volumes: ["Vol2", "Vol3"]
+            must_match: ["building_class"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL1 ENERGY LIGHTING & POWER EVIDENCE"]
+
+        # --- ENERGY EFFICIENCY: HEATED WATER & POOL/SPA PLANT (J8) ---
+        - topic_id: VOL1_ENERGY_HEATED_WATER_POOLS
+          intent_keywords: ["heated water", "hot water system", "pool heating", "spa heating", "solar hot water", "heat pump hot water"]
+          route:
+            section_code: "J"
+            disciplines: ["Energy", "Hydraulics", "Mechanical"]
+            allowed_unit_types: ["DTS_PROVISION", "VERIFICATION_METHOD", "PERFORMANCE_REQUIREMENT"]
+          required_aspects:
+            - building_class
+            - system_type
+            - energy_source
+            - efficiency_requirements
+            - storage_and_distribution
+            - evidence_citation
+          aspect_extractors:
+            building_class: { patterns: ["Class\\s*([2-9]|10[a-z]?)"] }
+            system_type: { patterns: ["storage", "instantaneous", "circulating", "centralised", "individual unit"] }
+            energy_source: { patterns: ["gas", "electric", "solar", "heat pump"] }
+            efficiency_requirements: { patterns: ["minimum efficiency", "COP", "star rating", "heat loss", "insulation"] }
+            storage_and_distribution: { patterns: ["pipe insulation", "circulation loop", "recirculation", "storage tank location"] }
+            evidence_citation: { patterns: ["J8\\.", "Table J8"] }
+          guardrails:
+            disallow_volumes: ["Vol2", "Vol3"]
+            must_match: ["system_type"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL1 ENERGY HEATED WATER & POOLS EVIDENCE"]
+
+        # --- DTS vs PERFORMANCE SOLUTIONS (Compliance pathways) ---
+        - topic_id: VOL1_COMPLIANCE_DTS_VS_PERFORMANCE
+          intent_keywords: ["deemed-to-satisfy", "DTS", "performance solution", "compliance pathway", "verification method", "Alternative Solution"]
+          route:
+            section_code: "A"
+            disciplines: ["Governing"]
+            allowed_unit_types: ["GOVERNING_REQUIREMENT", "PERFORMANCE_REQUIREMENT", "VERIFICATION_METHOD"]
+          required_aspects:
+            - pathway_type
+            - documentation_requirements
+            - assessment_methods
+            - evidence_citation
+          aspect_extractors:
+            pathway_type: { patterns: ["DTS", "performance solution", "verification method", "expert judgement", "comparison with DTS"] }
+            documentation_requirements: { patterns: ["documented", "report", "analysis", "modelling", "certificate"] }
+            assessment_methods: { patterns: ["calculation", "test", "inspection", "expert judgement"] }
+            evidence_citation: { patterns: ["A2\\.", "A0\\.", "Governing requirements"] }
+          guardrails:
+            disallow_volumes: []
+            must_match: ["pathway_type"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL1 COMPLIANCE PATHWAYS EVIDENCE"]
+
+    # -------------------------
+    # VOLUME 2 (Class 1 & 10)
+    # -------------------------
+    - volume: Vol2
+      topics:
+
+        # -------------------------
+        # SECTION A — Governing
+        # -------------------------
+
+        # -------------------------
+        # A0 — Scope / Application / Alterations & Additions (Governing)
+        # (Fixes: "Does Vol2 apply to alterations/additions the same way as new work?")
+        # -------------------------
+        - topic_id: VOL2_GOV_APPLICATION_SCOPE
+          intent_keywords:
+            - "applies to"
+            - "application"
+            - "scope"
+            - "does ncc apply"
+            - "volume two apply"
+            - "new work"
+            - "existing building"
+            - "existing work"
+            - "alteration"
+            - "alterations"
+            - "addition"
+            - "additions"
+            - "renovation"
+            - "extension"
+            - "repair"
+            - "change of use"
+            - "upgrade"
+            - "trigger"
+          min_keyword_matches: 2
+          route:
+            section_code: "A"
+            disciplines: ["Governing"]
+            allowed_unit_types: ["GOVERNING_REQUIREMENT", "INTRODUCTORY_PROVISION", "DEFINITION", "SCHEDULE"]
+            exclude_keywords:
+              # avoid technical "apply" phrases inside other sections
+              - "ventilation"
+              - "natural light"
+              - "waterproofing"
+              - "roof drainage"
+              - "smoke alarm"
+              - "stair"
+              - "balustrade"
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            must_use_phrases:
+              - "to the extent required"
+              - "depending on the nature and extent of the work"
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 APPLICATION/SCOPE EVIDENCE"
+
+        # -------------------------
+        # A1 — Classification (Class 1 & 10)
+        # (Fixes: mixed uses on allotment; Class 10a on same land as Class 1; "which class governs?")
+        # -------------------------
+        - topic_id: VOL2_GOV_CLASSIFICATION
+          intent_keywords:
+            - "building classification"
+            - "classified as"
+            - "classification"
+            - "building class"
+            - "what class"
+            - "which class"
+            - "class 1"
+            - "class 10"
+            - "1a"
+            - "1b"
+            - "10a"
+            - "10b"
+            - "10c"
+            - "ancillary"
+            - "appurtenant"
+            - "associated with"
+            - "on the same allotment"
+            - "same allotment"
+            - "same land"
+            - "multiple uses"
+            - "mixed use"
+            - "shed"
+            - "garage"
+            - "carport"
+            - "outbuilding"
+            - "private garage"
+            - "farm building"
+            - "dwelling"
+          min_keyword_matches: 3
+          route:
+            section_code: "A"
+            disciplines: ["Governing"]
+            allowed_unit_types: ["GOVERNING_REQUIREMENT", "INTRODUCTORY_PROVISION", "DEFINITION", "DTS_PROVISION", "PERFORMANCE_REQUIREMENT", "SCHEDULE"]
+            exclude_keywords:
+              # keep "classification" from being hijacked by technical topics
+              - "ceiling height"
+              - "room height"
+              - "ventilation"
+              - "openable"
+              - "natural light"
+              - "minimum height"
+              - "habitable room height"
+              - "corridor height"
+              - "bathroom height"
+              - "sloping ceiling"
+              - "waterproof"
+              - "weatherproof"
+              - "stair rise"
+              - "balustrade height"
+              - "height"
+              - "headroom"
+              - "clear height"
+              - "mezzanine"
+              - "loft"
+              - "attic"
+              - "raked ceiling"
+              - "two-thirds"
+              - "2/3"
+              - "measurement"
+              - "measured"
+              - "from finished floor"
+              - "to finished ceiling"
+              - "underside"
+              - "soffit"
+              - "rafter"
+              - "beam"
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            must_not_cite_sections:
+              - "Part 3"
+              - "Part 5"
+              - "Part 7"
+            must_focus_on:
+              - "classification logic"
+              - "use and purpose"
+              - "building relationship"
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 CLASSIFICATION EVIDENCE"
+
+        # -------------------------
+        # A2 — Compliance Pathways / Hierarchy / Assessment Methods (Performance vs DTS vs VM)
+        # (Fixes: PR vs DTS conflict; "which assessment methods are permitted?"; "when is Performance Solution allowed?")
+        # -------------------------
+        - topic_id: VOL2_GOV_COMPLIANCE_PATHWAYS
+          intent_keywords:
+            - "compliance pathway"
+            - "compliance pathways"
+            - "performance requirement"
+            - "performance solution"
+            - "deemed-to-satisfy"
+            - "deemed to satisfy"
+            - "dts"
+            - "verification method"
+            - "assessment method"
+            - "evidence of suitability"
+            - "alternative solution"
+            - "performance-based"
+            - "hierarchy"
+            - "prevails"
+            - "conflict"
+            - "override"
+            - "inconsistency"
+            - "mandatory"
+            - "optional"
+            - "how to demonstrate compliance"
+            - "how do i comply"
+          min_keyword_matches: 2
+          route:
+            section_code: "A"
+            disciplines: ["Governing"]
+            allowed_unit_types: ["GOVERNING_REQUIREMENT", "INTRODUCTORY_PROVISION", "DTS_PROVISION", "PERFORMANCE_REQUIREMENT", "VERIFICATION_METHOD", "DEFINITION", "SCHEDULE"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_question_mentions: ["assessment method"]
+            must_explain:
+              - "assessment methods are tools, not compliance pathways"
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 COMPLIANCE PATHWAYS / HIERARCHY EVIDENCE"
+
+        # -------------------------
+        # A3 — Evidence of Suitability (Materials / Products / Systems)
+        # (Keeps product evidence from being misrouted into technical sections)
+        # -------------------------
+        - topic_id: VOL2_GOV_EVIDENCE_OF_SUITABILITY
+          intent_keywords:
+            - "evidence of suitability"
+            - "evidence"
+            - "suitable for use"
+            - "material"
+            - "product"
+            - "system"
+            - "certification"
+            - "certificate"
+            - "codemark"
+            - "code mark"
+            - "certificate of conformity"
+            - "test report"
+            - "assessment report"
+            - "accreditation"
+            - "manufacturer's declaration"
+            - "technical evidence"
+          min_keyword_matches: 2
+          route:
+            section_code: "A"
+            disciplines: ["Governing"]
+            allowed_unit_types: ["GOVERNING_REQUIREMENT", "INTRODUCTORY_PROVISION", "SCHEDULE", "DEFINITION"]
+            exclude_keywords:
+              # prevent hijack into installation specifics
+              - "installation"
+              - "mounting height"
+              - "wiring"
+              - "cable"
+              - "vent"
+              - "duct"
+              - "drain"
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 EVIDENCE OF SUITABILITY EVIDENCE"
+
+        # -------------------------
+        # A4 — Definitions + Definition Precedence (NCC vs referenced standard)
+        # (Fixes: "term defined differently in NCC vs referenced AS—what applies?")
+        # -------------------------
+        - topic_id: VOL2_GOV_DEFINITIONS
+          intent_keywords:
+            - "definition"
+            - "define"
+            - "means"
+            - "is defined as"
+            - "interpretation"
+            - "for the purposes of"
+            - "term"
+            - "defined differently"
+            - "conflicting definition"
+            - "which definition applies"
+            - "habitable room"
+            - "storey"
+            - "allotment"
+            - "fire-resistance level"
+            - "frl"
+            - "referenced standard definition"
+            - "australian standard definition"
+          min_keyword_matches: 2
+          route:
+            section_code: "A"
+            disciplines: ["Governing"]
+            allowed_unit_types: ["DEFINITION", "GOVERNING_REQUIREMENT", "INTRODUCTORY_PROVISION", "SCHEDULE"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 DEFINITIONS / INTERPRETATION EVIDENCE"
+
+        # -------------------------
+        # A5 — Referenced Documents (Extent / "called up" vs whole standard)
+        # (Fixes: "referenced documents mandatory in full, or only to the extent called up?")
+        # -------------------------
+        - topic_id: VOL2_GOV_REFERENCED_DOCS
+          intent_keywords:
+            - "referenced document"
+            - "referenced documents"
+            - "as/nzs"
+            - "australian standard"
+            - "standard referenced"
+            - "called up"
+            - "to the extent"
+            - "extent of reference"
+            - "mandatory in full"
+            - "only the clause"
+            - "whole standard"
+            - "table of referenced documents"
+            - "schedule of referenced documents"
+            - "incorporated by reference"
+            - "as "
+          min_keyword_matches: 2
+          route:
+            section_code: "A"
+            disciplines: ["Governing"]
+            allowed_unit_types: ["REFERENCED_DOCUMENT", "SCHEDULE", "GOVERNING_REQUIREMENT", "INTRODUCTORY_PROVISION", "DEFINITION"]
+            exclude_keywords:
+              # stop false hits on "AS 1684 timber framing" etc when user is really asking structural design
+              - "span table"
+              - "beam size"
+              - "stud size"
+              - "wind classification"
+              - "cyclonic"
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 REFERENCED DOCUMENTS / EXTENT EVIDENCE"
+
+        # -------------------------
+        # A6 — State & Territory Variations (How they override / where they appear)
+        # -------------------------
+        - topic_id: VOL2_GOV_STATE_VARIATIONS
+          intent_keywords:
+            - "state variation"
+            - "territory variation"
+            - "variation"
+            - "nsw variation"
+            - "vic variation"
+            - "qld variation"
+            - "wa variation"
+            - "tas variation"
+            - "act variation"
+            - "nt variation"
+            - "sa variation"
+            - "how do i know"
+            - "overrides"
+            - "override national"
+            - "takes precedence"
+            - "addition"
+            - "deletion"
+            - "amendment"
+          min_keyword_matches: 2
+          route:
+            section_code: "A"
+            disciplines: ["Governing"]
+            allowed_unit_types: ["STATE_VARIATION", "SCHEDULE", "INTRODUCTORY_PROVISION", "GOVERNING_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 STATE/TERRITORY VARIATIONS EVIDENCE"
+
+        # -------------------------
+        # H1 — Structure
+        # -------------------------
+        - topic_id: VOL2_H1_WIND_BRACING_TIEDOWN
+          intent_keywords: ["wind classification", "N1", "N2", "N3", "N4", "C1", "C2", "C3", "C4", "bracing", "tie-down", "anchorage"]
+          route:
+            section_code: "H"
+            disciplines: ["Structural"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT", "VERIFICATION_METHOD"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H1 WIND/BRACING EVIDENCE"]
+
+        - topic_id: VOL2_H1_FOOTINGS_SLABS_SITE
+          intent_keywords: ["footing", "slab", "site classification", "reactive soil", "AS 2870", "stumps", "bearers", "joists"]
+          route:
+            section_code: "H"
+            disciplines: ["Structural"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H1 FOOTINGS/SLABS EVIDENCE"]
+
+        - topic_id: VOL2_H1_GLAZING_SAFETY
+          intent_keywords: ["glazing", "safety glass", "human impact", "balustrade glass", "AS 1288"]
+          route:
+            section_code: "H"
+            disciplines: ["Structural", "Building"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H1 GLAZING EVIDENCE"]
+
+        # -------------------------
+        # H2 — Damp and weatherproofing
+        # -------------------------
+        - topic_id: VOL2_H2_WATERPROOFING_WET_AREAS
+          intent_keywords: ["waterproofing", "wet area", "shower", "bathroom", "AS 3740", "membrane", "floor waste"]
+          route:
+            section_code: "H"
+            disciplines: ["Building"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H2 WATERPROOFING EVIDENCE"]
+
+        - topic_id: VOL2_H2_CONDENSATION_MANAGEMENT
+          intent_keywords: ["condensation", "vapour barrier", "sarking", "moisture management", "mould", "vented cavity"]
+          route:
+            section_code: "H"
+            disciplines: ["Building", "Energy"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H2 CONDENSATION EVIDENCE"]
+
+        - topic_id: VOL2_H2_TERMITES
+          intent_keywords: ["termite", "termite management", "barrier", "inspection zone", "chemical barrier", "physical barrier"]
+          route:
+            section_code: "H"
+            disciplines: ["Building"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H2 TERMITE EVIDENCE"]
+
+        # -------------------------
+        # H3 — Fire safety
+        # -------------------------
+        - topic_id: VOL2_H3_SMOKE_ALARMS
+          intent_keywords: ["smoke alarm", "smoke detector", "interconnection", "power supply", "location of smoke alarms"]
+          route:
+            section_code: "H"
+            disciplines: ["Fire"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H3 SMOKE ALARMS EVIDENCE"]
+
+        - topic_id: VOL2_H3_BUSHFIRE_CONSTRUCTION
+          intent_keywords: ["bushfire", "BAL", "AS 3959", "ember", "flame zone", "construction in bushfire prone"]
+          route:
+            section_code: "H"
+            disciplines: ["Fire", "Building"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H3 BUSHFIRE EVIDENCE"]
+
+        - topic_id: VOL2_H3_FIRE_SEPARATION_GARAGE
+          intent_keywords: ["garage", "separation", "fire separation", "internal wall to garage", "door to garage", "ceiling separation"]
+          route:
+            section_code: "H"
+            disciplines: ["Fire", "Building"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H3 GARAGE SEPARATION EVIDENCE"]
+
+        # -------------------------
+        # VOLUME 2 — PART H4
+        # Health and Amenity (Class 1)
+        # -------------------------
+        - topic_id: VOL2_H4_ROOM_HEIGHTS
+          intent_keywords:
+            - "ceiling height"
+            - "room height"
+            - "minimum height"
+            - "habitable room"
+            - "non-habitable"
+            - "corridor"
+            - "bathroom"
+            - "laundry"
+            - "sloping ceiling"
+            - "raked ceiling"
+            - "loft"
+            - "mezzanine"
+            - "attic"
+            - "headroom"
+            - "clear height"
+            - "H4"
+            - "Part H4"
+            - "room heights"
+            - "height"
+          min_keyword_matches: 1
+          route:
+            section_code: "H"
+            disciplines: ["Amenity"]
+            allowed_unit_types:
+              [
+                "DTS_PROVISION",
+                "SPECIFICATION_CLAUSE",
+                "TABLE",
+                "TABLE_ROW",
+                "TABLE_CELL",
+                "PERFORMANCE_REQUIREMENT"
+              ]
+          required_aspects:
+            - room_type
+            - numeric_limits
+            - measurement_method
+            - exceptions
+            - evidence_citation
+          aspect_extractors:
+            room_type:
+              patterns:
+                - "habitable room"
+                - "habitable space"
+                - "bedroom"
+                - "living"
+                - "dining"
+                - "corridor"
+                - "bathroom"
+                - "laundry"
+                - "non-habitable"
+                - "mezzanine"
+                - "loft"
+                - "attic"
+            numeric_limits:
+              patterns:
+                - "\\d+\\.?\\d*\\s*m"
+                - "\\d+\\.?\\d*\\s*metres"
+                - "minimum.*height"
+                - "not less than"
+                - "\\d+\\.?\\d*\\s*mm"
+            measurement_method:
+              patterns:
+                - "measured"
+                - "measurement"
+                - "from finished floor"
+                - "to finished ceiling"
+                - "underside"
+                - "soffit"
+                - "rafter"
+                - "beam"
+                - "ceiling line"
+                - "two-thirds"
+                - "2/3"
+                - "floor area"
+                - "1.5 m"
+            exceptions:
+              patterns:
+                - "sloping ceiling"
+                - "raked ceiling"
+                - "exception"
+                - "reduced height"
+            evidence_citation:
+              patterns:
+                - "H4D5"
+                - "H4\\."
+                - "H4\\d+"
+                - "Section H4"
+                - "Table H4"
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            must_match: ["numeric_limits"]
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 H4 ROOM HEIGHT DTS EVIDENCE (NUMERIC RULE REQUIRED)"
+
+        - topic_id: VOL2_H4_NATURAL_VENTILATION
+          intent_keywords:
+            - "natural ventilation"
+            - "openable area"
+            - "ventilation percentage"
+            - "%"
+            - "aggregate openable area"
+            - "floor area"
+          min_keyword_matches: 1
+          route:
+            section_code: "H"
+            disciplines: ["Amenity", "BuildingServices"]
+            allowed_unit_types:
+              [
+                "DTS_PROVISION",
+                "TABLE",
+                "TABLE_ROW",
+                "TABLE_CELL",
+                "SPECIFICATION_CLAUSE",
+                "PERFORMANCE_REQUIREMENT",
+                "REFERENCED_DOCUMENT"
+              ]
+          required_aspects:
+            - room_type
+            - ventilation_metric
+            - metric_basis
+            - mechanical_alternative
+            - evidence_citation
+          aspect_extractors:
+            room_type:
+              patterns:
+                - "habitable room"
+                - "habitable space"
+                - "bedroom"
+                - "living"
+                - "dining"
+            ventilation_metric:
+              patterns:
+                - "openable area"
+                - "aggregate openable area"
+                - "\\d+(\\.\\d+)?\\s*%"
+                - "minimum.*area"
+                - "ventilation opening"
+            metric_basis:
+              patterns:
+                - "of the floor area"
+                - "of floor area"
+                - "of the room"
+                - "measured"
+            mechanical_alternative:
+              patterns:
+                - "mechanical ventilation"
+                - "AS\\s*1668\\.2"
+                - "alternative"
+            evidence_citation:
+              patterns:
+                - "H4D7"
+                - "H4\\."
+                - "Part\\s*10\\.6"
+                - "Table"
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            must_match: ["ventilation_metric"]
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 H4 NATURAL VENTILATION DTS EVIDENCE (NUMERIC RULE REQUIRED)"
+
+        - topic_id: VOL2_H4_MECHANICAL_VENTILATION
+          intent_keywords:
+            - "mechanical ventilation"
+            - "instead of natural ventilation"
+            - "AS 1668.2"
+            - "alternative ventilation"
+            - "exhaust fan"
+          min_keyword_matches: 1
+          route:
+            section_code: "H"
+            disciplines: ["BuildingServices", "Amenity"]
+            allowed_unit_types:
+              [
+                "DTS_PROVISION",
+                "PERFORMANCE_REQUIREMENT",
+                "REFERENCED_DOCUMENT",
+                "SPECIFICATION_CLAUSE"
+              ]
+          required_aspects:
+            - condition
+            - exclusions
+            - evidence_citation
+          aspect_extractors:
+            condition:
+              patterns:
+                - "AS\\s*1668\\.2"
+                - "in accordance with"
+                - "compliance"
+            exclusions:
+              patterns:
+                - "exhaust fan"
+                - "exhaust fans"
+                - "sanitary compartment"
+                - "bathroom"
+                - "kitchen"
+                - "laundry"
+            evidence_citation:
+              patterns:
+                - "H4D7"
+                - "H4P5"
+                - "Part\\s*10\\.6"
+                - "AS\\s*1668\\.2"
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 H4 MECHANICAL VENTILATION CONDITIONS"
+
+        - topic_id: VOL2_H4_NATURAL_LIGHT
+          intent_keywords:
+            - "natural light"
+            - "daylight"
+            - "glazing area"
+            - "window area"
+            - "light opening"
+            - "daylight factor"
+            - "average daylight factor"
+            - "H4V2"
+          min_keyword_matches: 1
+          route:
+            section_code: "H"
+            disciplines: ["Amenity"]
+            allowed_unit_types:
+              [
+                "DTS_PROVISION",
+                "TABLE",
+                "TABLE_ROW",
+                "TABLE_CELL",
+                "PERFORMANCE_REQUIREMENT"
+              ]
+          required_aspects:
+            - room_type
+            - lighting_metric
+            - metric_basis
+            - evidence_citation
+          aspect_extractors:
+            room_type:
+              patterns:
+                - "habitable room"
+                - "habitable space"
+                - "bedroom"
+                - "living"
+                - "dining"
+            lighting_metric:
+              patterns:
+                - "glazing area"
+                - "window area"
+                - "light opening"
+                - "daylight factor"
+                - "average daylight factor"
+                - "\\d+(\\.\\d+)?\\s*%"
+                - "minimum.*area"
+            metric_basis:
+              patterns:
+                - "of the floor area"
+                - "of floor area"
+                - "measured"
+            evidence_citation:
+              patterns:
+                - "H4\\."
+                - "H4\\d+"
+                - "H4P4"
+                - "H4V2"
+                - "Table H4"
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            must_match: ["lighting_metric"]
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 H4 NATURAL LIGHT DTS EVIDENCE (NUMERIC RULE REQUIRED)"
+
+        - topic_id: VOL2_H4_SANITARY_FACILITIES
+          intent_keywords:
+            - "sanitary"
+            - "toilet"
+            - "bathroom"
+            - "shower"
+            - "laundry"
+            - "sanitary facilities"
+          min_keyword_matches: 1
+          route:
+            section_code: "H"
+            disciplines: ["Amenity"]
+            allowed_unit_types:
+              [
+                "DTS_PROVISION",
+                "PERFORMANCE_REQUIREMENT",
+                "SPECIFICATION_CLAUSE"
+              ]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            must_state:
+              - "Applies to Class 1 buildings only"
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 H4 SANITARY FACILITIES EVIDENCE"
+
+        - topic_id: VOL2_H4_WET_AREAS
+          intent_keywords:
+            - "wet area"
+            - "wet areas"
+            - "waterproofing"
+            - "waterproof membrane"
+            - "shower"
+            - "shower recess"
+            - "bathroom"
+            - "laundry"
+            - "floor waste"
+            - "water stop"
+            - "damp"
+            - "moisture"
+          min_keyword_matches: 1
+          route:
+            section_code: "H"
+            disciplines: ["Amenity", "Hydraulics"]
+            allowed_unit_types: ["DTS_PROVISION", "SPECIFICATION_CLAUSE", "PERFORMANCE_REQUIREMENT", "TABLE", "TABLE_ROW", "TABLE_CELL"]
+          required_aspects:
+            - wet_area_type
+            - requirement_type
+            - numeric_limits
+            - referenced_standards
+            - evidence_citation
+          aspect_extractors:
+            wet_area_type:
+              patterns:
+                - "bathroom"
+                - "sanitary compartment"
+                - "shower"
+                - "laundry"
+                - "kitchen"
+            requirement_type:
+              patterns:
+                - "waterproof"
+                - "water-resistant"
+                - "drainage"
+                - "graded"
+                - "floor waste"
+                - "water stop"
+                - "moisture"
+            numeric_limits:
+              patterns:
+                - "\\d+\\.?\\d*\\s*mm"
+                - "\\d+\\.?\\d*\\s*m"
+                - "\\d+(\\.\\d+)?\\s*%"
+            referenced_standards:
+              patterns:
+                - "AS\\s*\\d+"
+                - "AS/NZS\\s*\\d+"
+            evidence_citation:
+              patterns:
+                - "H4P1"
+                - "H4O1"
+                - "H4F1"
+                - "H4\\."
+                - "Part\\s*10\\.6"
+                - "Section\\s*H4"
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 H4 WET AREAS EVIDENCE"
+
+        - topic_id: VOL2_H4_SOUND_INSULATION
+          intent_keywords:
+            - "sound insulation"
+            - "acoustic"
+            - "noise"
+            - "impact sound"
+            - "airborne sound"
+            - "adjoining dwelling"
+            - "wall sound"
+            - "floor sound"
+            - "Rw"
+            - "Ln,w"
+          min_keyword_matches: 1
+          route:
+            section_code: "H"
+            disciplines: ["Amenity", "Acoustic"]
+            allowed_unit_types: ["DTS_PROVISION", "SPECIFICATION_CLAUSE", "PERFORMANCE_REQUIREMENT", "TABLE", "TABLE_ROW", "TABLE_CELL"]
+          required_aspects:
+            - building_element
+            - metric_or_rating
+            - numeric_limits
+            - evidence_citation
+          aspect_extractors:
+            building_element:
+              patterns:
+                - "wall"
+                - "floor"
+                - "ceiling"
+                - "separating"
+                - "adjoining"
+            metric_or_rating:
+              patterns:
+                - "Rw"
+                - "Ln,w"
+                - "DnT"
+                - "STC"
+                - "impact"
+                - "airborne"
+            numeric_limits:
+              patterns:
+                - "\\d+\\.?\\d*"
+            evidence_citation:
+              patterns:
+                - "H4P6"
+                - "H4O6"
+                - "H4F6"
+                - "H4\\."
+                - "Section\\s*H4"
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            must_match: ["metric_or_rating"]
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 H4 SOUND INSULATION EVIDENCE (RATING/METRIC REQUIRED)"
+
+        - topic_id: VOL2_H4_CONDENSATION_WATER_VAPOUR
+          intent_keywords:
+            - "condensation"
+            - "water vapour"
+            - "vapour"
+            - "mould"
+            - "mold"
+            - "dew point"
+            - "interstitial condensation"
+            - "moisture management"
+            - "vapour barrier"
+            - "sarking"
+          min_keyword_matches: 1
+          route:
+            section_code: "H"
+            disciplines: ["Amenity", "BuildingPhysics"]
+            allowed_unit_types: ["DTS_PROVISION", "SPECIFICATION_CLAUSE", "PERFORMANCE_REQUIREMENT", "REFERENCED_DOCUMENT"]
+          required_aspects:
+            - risk_condition
+            - control_measure
+            - referenced_standards
+            - evidence_citation
+          aspect_extractors:
+            risk_condition:
+              patterns:
+                - "condensation"
+                - "water vapour"
+                - "moisture"
+                - "mould"
+            control_measure:
+              patterns:
+                - "ventilation"
+                - "vapour"
+                - "barrier"
+                - "membrane"
+                - "management"
+            referenced_standards:
+              patterns:
+                - "AS\\s*\\d+"
+                - "AS/NZS\\s*\\d+"
+            evidence_citation:
+              patterns:
+                - "H4P7"
+                - "H4O7"
+                - "H4F7"
+                - "H4\\."
+                - "Section\\s*H4"
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            must_state:
+              - "Applies to a Class 1 building"
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 H4 CONDENSATION/WATER VAPOUR EVIDENCE"
+
+        - topic_id: VOL2_H4_INDOOR_AIR_QUALITY_LIMITS
+          intent_keywords:
+            - "indoor air quality"
+            - "CO2"
+            - "carbon dioxide"
+            - "carbon monoxide"
+            - "formaldehyde"
+            - "nitrogen dioxide"
+            - "ozone"
+            - "PM2.5"
+            - "PM10"
+            - "TVOC"
+            - "ppm"
+            - "μg/m3"
+            - "maximum air quality"
+          min_keyword_matches: 1
+          route:
+            section_code: "H"
+            disciplines: ["BuildingServices", "Amenity"]
+            allowed_unit_types: ["TABLE", "TABLE_ROW", "TABLE_CELL", "DTS_PROVISION", "SPECIFICATION_CLAUSE", "PERFORMANCE_REQUIREMENT"]
+          required_aspects:
+            - pollutant
+            - averaging_time
+            - numeric_limit
+            - unit_of_measure
+            - evidence_citation
+          aspect_extractors:
+            pollutant:
+              patterns:
+                - "CO2"
+                - "carbon dioxide"
+                - "CO"
+                - "carbon monoxide"
+                - "CH2O"
+                - "formaldehyde"
+                - "NO2"
+                - "nitrogen dioxide"
+                - "O3"
+                - "ozone"
+                - "PM2\\.5"
+                - "PM10"
+                - "volatile organic"
+                - "TVOC"
+            averaging_time:
+              patterns:
+                - "\\d+\\s*minutes"
+                - "\\d+\\s*hours"
+                - "\\d+\\s*year"
+                - "daily maximum"
+                - "percentile"
+            numeric_limit:
+              patterns:
+                - "\\d+\\.?\\d*\\s*ppm"
+                - "\\d+\\.?\\d*\\s*μg/m3"
+                - "\\d+\\.?\\d*\\s*mg/m3"
+            unit_of_measure:
+              patterns:
+                - "ppm"
+                - "μg/m3"
+                - "mg/m3"
+            evidence_citation:
+              patterns:
+                - "TABLE-104"
+                - "Table\\s*TABLE-104"
+                - "Maximum Air Quality Value"
+                - "H4\\."
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            must_match: ["numeric_limit", "pollutant"]
+            if_missing_must_say:
+              - "NOT FOUND IN NCC VOL2 H4 INDOOR AIR QUALITY LIMITS (NUMERIC TABLE EVIDENCE REQUIRED)"
+
+    # -------------------------
+        # H5 — Safe movement and access
+    # -------------------------
+        - topic_id: VOL2_H5_STAIRS_RISERS_GOINGS
+          intent_keywords: ["stairs", "riser", "going", "tread", "stair geometry", "landing", "nosing"]
+          route:
+            section_code: "H"
+            disciplines: ["Access"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT", "TABLE", "TABLE_ROW", "TABLE_CELL"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H5 STAIRS EVIDENCE"]
+
+        - topic_id: VOL2_H5_BALUSTRADES_HANDRAILS
+          intent_keywords: ["balustrade", "handrail", "barrier", "fall prevention", "opening size", "height requirement"]
+          route:
+            section_code: "H"
+            disciplines: ["Access", "Building"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H5 BALUSTRADES/HANDRAILS EVIDENCE"]
+
+        - topic_id: VOL2_H5_SLIP_RESISTANCE
+          intent_keywords: ["slip resistance", "slip", "wet area slip", "stairs slip", "P rating", "R rating"]
+          route:
+            section_code: "H"
+            disciplines: ["Access"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT", "REFERENCED_DOCUMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H5 SLIP RESISTANCE EVIDENCE"]
+
+        - topic_id: VOL2_H5_POOLS_BARRIERS
+          intent_keywords: ["swimming pool", "pool barrier", "pool fence", "gate self closing", "child safety barrier"]
+          route:
+            section_code: "H"
+            disciplines: ["Access", "Building"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H5 POOL BARRIERS EVIDENCE"]
+
+        # -------------------------
+        # H6 — Energy efficiency
+        # -------------------------
+        - topic_id: VOL2_H6_NATHERS_RATING_METHOD
+          intent_keywords: ["NatHERS", "star rating", "house energy rating", "reference building", "house energy rating software"]
+          route:
+            section_code: "H"
+            disciplines: ["Energy"]
+            allowed_unit_types: ["DTS_PROVISION", "VERIFICATION_METHOD", "PERFORMANCE_REQUIREMENT", "SPECIFICATION_CLAUSE"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H6 NATHERS EVIDENCE"]
+
+        - topic_id: VOL2_H6_INSULATION_BUILDING_FABRIC
+          intent_keywords: ["insulation", "R-value", "roof insulation", "wall insulation", "floor insulation", "building fabric"]
+          route:
+            section_code: "H"
+            disciplines: ["Energy"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H6 INSULATION EVIDENCE"]
+
+        - topic_id: VOL2_H6_GLAZING_UVALUE_SHGC
+          intent_keywords: ["glazing performance", "U-value", "SHGC", "window energy", "skylight energy"]
+          route:
+            section_code: "H"
+            disciplines: ["Energy"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT", "TABLE", "TABLE_ROW", "TABLE_CELL"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H6 GLAZING EVIDENCE"]
+
+        # -------------------------
+        # H7 — Ancillary / additional construction requirements
+        # -------------------------
+        - topic_id: VOL2_H7_CARPORTH_PERGOLAS_DECKS
+          intent_keywords: ["carport", "pergola", "verandah", "deck", "awning", "attached structure"]
+          route:
+            section_code: "H"
+            disciplines: ["Building", "Structural"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H7 ANCILLARY STRUCTURES EVIDENCE"]
+
+        - topic_id: VOL2_H7_FIREPLACES_HEATERS_FLUES
+          intent_keywords: ["fireplace", "solid fuel heater", "flue", "chimney", "clearance to combustible"]
+          route:
+            section_code: "H"
+            disciplines: ["Fire", "BuildingServices"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT", "REFERENCED_DOCUMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H7 FLUES/FIREPLACES EVIDENCE"]
+
+        # -------------------------
+        # H8 — Livable housing design
+        # -------------------------
+        - topic_id: VOL2_H8_STEP_FREE_PATH_ENTRANCE
+          intent_keywords: ["livable housing", "step-free", "step free", "accessible entrance", "path of travel", "threshold"]
+          route:
+            section_code: "H"
+            disciplines: ["Access"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H8 STEP-FREE PATH EVIDENCE"]
+
+        - topic_id: VOL2_H8_DOORWAY_CORRIDOR_WIDTHS
+          intent_keywords: ["door width", "clear opening", "corridor width", "circulation space", "wheelchair"]
+          route:
+            section_code: "H"
+            disciplines: ["Access"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT", "TABLE", "TABLE_ROW", "TABLE_CELL"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H8 WIDTHS/CIRCULATION EVIDENCE"]
+
+        - topic_id: VOL2_H8_TOILET_SHOWER_PROVISIONS
+          intent_keywords: ["accessible toilet", "toilet location", "shower", "reinforcement", "grabrail", "bathroom circulation"]
+          route:
+            section_code: "H"
+            disciplines: ["Access", "Amenity"]
+            allowed_unit_types: ["DTS_PROVISION", "PERFORMANCE_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1", "Vol3"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL2 H8 SANITARY LIVABLE EVIDENCE"]
+
+    # =========================
+    # NCC VOLUME 3 — PLUMBING CODE
+    # Skeleton Coverage Map (Release v1)
+    # =========================
+
+    - volume: Vol3
+      topics:
+
+        # -------------------------
+        # SECTION A — Governing
+        # -------------------------
+        - topic_id: VOL3_GOV_CLASSIFICATION
+          intent_keywords: ["building classification", "class 1", "class 10", "plumbing code scope"]
+          route:
+            section_code: "A"
+            disciplines: ["Governing"]
+            allowed_unit_types: ["DEFINITION","GOVERNING_REQUIREMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 CLASSIFICATION EVIDENCE"]
+
+        - topic_id: VOL3_GOV_COMPLIANCE_PATHWAYS
+          intent_keywords: ["performance solution", "deemed-to-satisfy", "verification method", "assessment method"]
+          route:
+            section_code: "A"
+            disciplines: ["Governing"]
+            allowed_unit_types: ["PERFORMANCE_REQUIREMENT","DTS_PROVISION","VERIFICATION_METHOD"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 COMPLIANCE PATHWAYS EVIDENCE"]
+
+        - topic_id: VOL3_GOV_REFERENCED_STANDARDS
+          intent_keywords: ["referenced standard", "as/nzs", "table of referenced documents"]
+          route:
+            section_code: "A"
+            disciplines: ["Governing"]
+            allowed_unit_types: ["REFERENCED_DOCUMENT","SCHEDULE"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 REFERENCED STANDARDS EVIDENCE"]
+
+        # -------------------------
+        # SECTION B — Water Services
+        # -------------------------
+        - topic_id: VOL3_B1_COLD_WATER_SERVICES
+          intent_keywords: ["cold water", "potable water", "water service", "supply pipe"]
+          route:
+            section_code: "B"
+            disciplines: ["Hydraulics"]
+            allowed_unit_types: ["PERFORMANCE_REQUIREMENT","DTS_PROVISION"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 COLD WATER SERVICES EVIDENCE"]
+
+        - topic_id: VOL3_B2_HEATED_WATER_SERVICES
+          intent_keywords: ["heated water", "hot water", "tempering valve", "scalding"]
+          route:
+            section_code: "B"
+            disciplines: ["Hydraulics","Energy"]
+            allowed_unit_types: ["PERFORMANCE_REQUIREMENT","DTS_PROVISION","VERIFICATION_METHOD"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 HEATED WATER SERVICES EVIDENCE"]
+
+        # -------------------------
+        # SECTION C — Sanitary Plumbing
+        # -------------------------
+        - topic_id: VOL3_C_SANITARY_FIXTURES
+          intent_keywords: ["sanitary fixture", "toilet", "basin", "bath", "shower"]
+          route:
+            section_code: "C"
+            disciplines: ["Hydraulics","Health"]
+            allowed_unit_types: ["PERFORMANCE_REQUIREMENT","DTS_PROVISION"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 SANITARY PLUMBING EVIDENCE"]
+
+        # -------------------------
+        # SECTION D — Drainage
+        # -------------------------
+        - topic_id: VOL3_D_DRAINAGE_SYSTEMS
+          intent_keywords: ["drainage", "sanitary drainage", "discharge pipe", "trap (drainage)"]
+          route:
+            section_code: "D"
+            disciplines: ["Hydraulics"]
+            allowed_unit_types: ["PERFORMANCE_REQUIREMENT","DTS_PROVISION"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 DRAINAGE EVIDENCE"]
+
+        # -------------------------
+        # SECTION E — On-site Wastewater
+        # -------------------------
+        - topic_id: VOL3_E_ONSITE_WASTEWATER
+          intent_keywords: ["on-site wastewater", "septic", "aerated wastewater", "treatment system"]
+          route:
+            section_code: "E"
+            disciplines: ["Hydraulics","Environmental"]
+            allowed_unit_types: ["PERFORMANCE_REQUIREMENT","DTS_PROVISION","REFERENCED_DOCUMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 ON-SITE WASTEWATER EVIDENCE"]
+
+        # -------------------------
+        # SECTION F — Gas Services
+        # -------------------------
+        - topic_id: VOL3_F_GAS_INSTALLATIONS
+          intent_keywords: ["gas installation", "gas appliance", "gas pipe", "flue"]
+          route:
+            section_code: "F"
+            disciplines: ["Gas","Fire"]
+            allowed_unit_types: ["PERFORMANCE_REQUIREMENT","DTS_PROVISION","REFERENCED_DOCUMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 GAS SERVICES EVIDENCE"]
+
+        # -------------------------
+        # SECTION G — Fire Service Plumbing
+        # -------------------------
+        - topic_id: VOL3_G_FIRE_SERVICE_PLUMBING
+          intent_keywords: ["fire service plumbing", "hydrant", "sprinkler supply", "fire water"]
+          route:
+            section_code: "G"
+            disciplines: ["Fire","Hydraulics"]
+            allowed_unit_types: ["PERFORMANCE_REQUIREMENT","DTS_PROVISION","REFERENCED_DOCUMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 FIRE SERVICE PLUMBING EVIDENCE"]
+
+        # -------------------------
+        # SECTION H — Stormwater
+        # -------------------------
+        - topic_id: VOL3_H_STORMWATER_DRAINAGE
+          intent_keywords: ["stormwater", "roof drainage", "downpipe", "gutter"]
+          route:
+            section_code: "H"
+            disciplines: ["Hydraulics"]
+            allowed_unit_types: ["PERFORMANCE_REQUIREMENT","DTS_PROVISION"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 STORMWATER EVIDENCE"]
+
+        # -------------------------
+        # SECTION I — Cross-connection & Backflow
+        # -------------------------
+        - topic_id: VOL3_I_BACKFLOW_PREVENTION
+          intent_keywords: ["backflow", "cross-connection", "contamination", "backflow prevention device"]
+          route:
+            section_code: "I"
+            disciplines: ["Hydraulics","Health"]
+            allowed_unit_types: ["PERFORMANCE_REQUIREMENT","DTS_PROVISION","REFERENCED_DOCUMENT"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 BACKFLOW EVIDENCE"]
+
+        # -------------------------
+        # SECTION J — Miscellaneous / Special Installations
+        # -------------------------
+        - topic_id: VOL3_J_SPECIAL_INSTALLATIONS
+          intent_keywords: ["special installation", "non-standard plumbing", "temporary installation"]
+          route:
+            section_code: "J"
+            disciplines: ["Hydraulics","Governing"]
+            allowed_unit_types: ["PERFORMANCE_REQUIREMENT","DTS_PROVISION"]
+          guardrails:
+            disallow_volumes: ["Vol1","Vol2"]
+            if_missing_must_say: ["NOT FOUND IN NCC VOL3 SPECIAL INSTALLATIONS EVIDENCE"]

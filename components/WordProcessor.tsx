@@ -21,6 +21,9 @@ import {
   ToggleButtonGroup,
   Alert,
   CircularProgress,
+  FormControlLabel,
+  Switch,
+  Checkbox,
 } from '@mui/material';
 import {
   Upload as UploadIcon,
@@ -28,9 +31,8 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
-import { DocumentData, Clause, ExtractedTable } from '@/types';
+import { DocumentData, Clause } from '@/types';
 import { detectAllClauses } from '@/lib/clause-detector';
-import { extractTables } from '@/lib/table-extractor';
 import { v4 as uuidv4 } from 'uuid';
 import DocumentEditor from '@/components/DocumentEditor';
 
@@ -39,11 +41,12 @@ type ViewMode = 'clean' | 'editor';
 export default function WordProcessor() {
   const [documentData, setDocumentData] = useState<DocumentData | null>(null);
   const [clauses, setClauses] = useState<Clause[]>([]);
-  const [tables, setTables] = useState<ExtractedTable[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('clean');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editedHtml, setEditedHtml] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(true);
+  const [selectedClauseIds, setSelectedClauseIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
   const promptInProgressRef = useRef<boolean>(false);
@@ -86,9 +89,15 @@ export default function WordProcessor() {
       const detectedClauses = detectAllClauses(result.data.paragraphs_clean);
       setClauses(detectedClauses);
 
-      // Extract tables from clean HTML
-      const extractedTables = extractTables(result.data.html_clean, result.data.paragraphs_clean);
-      setTables(extractedTables);
+      // Clear selection when new file is uploaded
+      setSelectedClauseIds(new Set());
+
+      // Set preview toggle based on file size (>5MB) or paragraph count (>1000)
+      // OFF by default for large files to improve performance
+      const fileSizeMB = file.size / (1024 * 1024);
+      const paragraphCount = result.data.paragraphs_clean?.length || 0;
+      const shouldDisablePreview = fileSizeMB > 5 || paragraphCount > 1000;
+      setShowPreview(!shouldDisablePreview);
     } catch (err: any) {
       setError(err.message || 'Failed to process file');
     } finally {
@@ -234,12 +243,123 @@ export default function WordProcessor() {
   };
 
   /**
+   * Delete clause and merge its text into the preceding clause
+   */
+  const handleDeleteClause = (clauseToDelete: Clause) => {
+    setClauses((currentClauses) => {
+      // Find the preceding clause (highest paragraphIndex that is less than deleted clause's index)
+      const precedingClause = currentClauses
+        .filter(c => c.paragraphIndex < clauseToDelete.paragraphIndex)
+        .sort((a, b) => b.paragraphIndex - a.paragraphIndex)[0]; // Get the one with highest index (closest)
+
+      if (precedingClause) {
+        // Merge deleted clause's text into preceding clause
+        const mergedText = precedingClause.text 
+          ? `${precedingClause.text}\n\n${clauseToDelete.clauseNumber} ${clauseToDelete.text}`
+          : `${clauseToDelete.clauseNumber} ${clauseToDelete.text}`;
+
+        // Update the preceding clause with merged text
+        const updatedClauses = currentClauses.map(c => 
+          c.id === precedingClause.id
+            ? { ...c, text: mergedText }
+            : c
+        );
+
+        // Remove the deleted clause
+        return updatedClauses.filter(c => c.id !== clauseToDelete.id);
+      } else {
+        // No preceding clause found, just remove it (first clause in list)
+        return currentClauses.filter(c => c.id !== clauseToDelete.id);
+      }
+    });
+    // Remove from selected set if it was selected
+    setSelectedClauseIds(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(clauseToDelete.id);
+      return newSet;
+    });
+  };
+
+  /**
+   * Delete multiple selected clauses and merge each into its preceding clause
+   */
+  const handleDeleteSelected = () => {
+    if (selectedClauseIds.size === 0) return;
+
+    setClauses((currentClauses) => {
+      // Sort selected clauses by paragraphIndex (ascending) to process in order
+      const clausesToDelete = currentClauses
+        .filter(c => selectedClauseIds.has(c.id))
+        .sort((a, b) => a.paragraphIndex - b.paragraphIndex);
+
+      let updatedClauses = [...currentClauses];
+
+      // Process each selected clause
+      clausesToDelete.forEach((clauseToDelete) => {
+        // Find the preceding clause (highest paragraphIndex that is less than deleted clause's index)
+        // Make sure it's not one of the clauses we're deleting
+        const precedingClause = updatedClauses
+          .filter(c => c.paragraphIndex < clauseToDelete.paragraphIndex && !selectedClauseIds.has(c.id))
+          .sort((a, b) => b.paragraphIndex - a.paragraphIndex)[0]; // Get the one with highest index (closest)
+
+        if (precedingClause) {
+          // Merge deleted clause's text into preceding clause
+          const mergedText = precedingClause.text 
+            ? `${precedingClause.text}\n\n${clauseToDelete.clauseNumber} ${clauseToDelete.text}`
+            : `${clauseToDelete.clauseNumber} ${clauseToDelete.text}`;
+
+          // Update the preceding clause with merged text
+          updatedClauses = updatedClauses.map(c => 
+            c.id === precedingClause.id
+              ? { ...c, text: mergedText }
+              : c
+          );
+        }
+
+        // Remove the deleted clause
+        updatedClauses = updatedClauses.filter(c => c.id !== clauseToDelete.id);
+      });
+
+      return updatedClauses;
+    });
+
+    // Clear selection
+    setSelectedClauseIds(new Set());
+  };
+
+  /**
+   * Toggle clause selection
+   */
+  const handleToggleClauseSelection = (clauseId: string) => {
+    setSelectedClauseIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(clauseId)) {
+        newSet.delete(clauseId);
+      } else {
+        newSet.add(clauseId);
+      }
+      return newSet;
+    });
+  };
+
+  /**
+   * Toggle select all clauses
+   */
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedClauseIds(new Set(clauses.map(c => c.id)));
+    } else {
+      setSelectedClauseIds(new Set());
+    }
+  };
+
+  /**
    * Export clauses and tables to Excel
    * Handles Excel's 32,767 character limit per cell
    */
   const exportToExcel = () => {
-    if (clauses.length === 0 && tables.length === 0) {
-      setError('No clauses or tables to export');
+    if (clauses.length === 0) {
+      setError('No clauses to export');
       return;
     }
 
@@ -305,100 +425,6 @@ export default function WordProcessor() {
       XLSX.utils.book_append_sheet(wb, wsClauses, 'Clauses');
     }
 
-    // Export tables (if any)
-    if (tables.length > 0) {
-      // Tables_RAG tab - one row per table with full LTE in one cell
-      const tablesRagRows = tables.map((t) => ({
-        'table_id': t.id,
-        'table_title': t.title,
-        'paragraphIndex': t.paragraphIndex,
-        'rows': t.rows,
-        'cols': t.cols,
-        'notes': t.notes,
-        'rag_text': t.lteText, // Full LTE_TABLE block in one cell
-      }));
-
-      const wsTablesRag = XLSX.utils.json_to_sheet(tablesRagRows);
-      XLSX.utils.book_append_sheet(wb, wsTablesRag, 'Tables_RAG');
-
-      // Individual table tabs - expand table grid into normal Excel cells
-
-      // Track used sheet names to ensure uniqueness
-      const usedSheetNames = new Set<string>(['Clauses', 'Tables_RAG']);
-      tables.forEach((table) => {
-        // Parse the table grid from LTE text
-        const gridMatch = table.lteText.match(/grid:\n([\s\S]*?)\n\[\/LTE_TABLE\]/);
-        if (gridMatch) {
-          const gridLines = gridMatch[1].trim().split('\n');
-          const tableData: string[][] = [];
-
-          gridLines.forEach((line) => {
-            // Parse pipe-separated cells, handling escaped pipes
-            const cells: string[] = [];
-            let currentCell = '';
-            let escaped = false;
-
-            for (let i = 0; i < line.length; i++) {
-              const char = line[i];
-
-              if (escaped) {
-                currentCell += char;
-                escaped = false;
-              } else if (char === '\\') {
-                escaped = true;
-              } else if (char === '|') {
-                if (currentCell.trim() || cells.length > 0) {
-                  // Remove merge markers like {colspan=2}
-                  const cleaned = currentCell.trim().replace(/\{colspan=\d+\}/g, '').replace(/\{rowspan=\d+\}/g, '');
-                  cells.push(cleaned);
-                  currentCell = '';
-                }
-              } else {
-                currentCell += char;
-              }
-            }
-
-            // Add last cell if any
-            if (currentCell.trim() || cells.length > 0) {
-              const cleaned = currentCell.trim().replace(/\{colspan=\d+\}/g, '').replace(/\{rowspan=\d+\}/g, '');
-              cells.push(cleaned);
-            }
-
-            // Remove empty first/last cells (from leading/trailing pipes)
-            if (cells.length > 0 && !cells[0]) cells.shift();
-            if (cells.length > 0 && !cells[cells.length - 1]) cells.pop();
-
-            if (cells.length > 0) {
-              tableData.push(cells);
-            }
-          });
-
-          if (tableData.length > 0) {
-            // Create sheet name from table ID (Excel sheet name limitations)
-            let baseSheetName = table.id.replace(/[\\\/ ?*\[\]:]/g, '_');
-            if (baseSheetName.length > 31) {
-              baseSheetName = baseSheetName.substring(0, 31);
-            }
-
-            // Ensure sheet name is unique by adding counter if needed
-            let sheetName = baseSheetName;
-            let counter = 1;
-            while (usedSheetNames.has(sheetName)) {
-              // Add counter suffix, but ensure total length <= 31
-              const suffix = `_${counter}`;
-              const maxBaseLength = 31 - suffix.length;
-              sheetName = baseSheetName.substring(0, maxBaseLength) + suffix;
-              counter++;
-            }
-            usedSheetNames.add(sheetName);
-
-            const wsTable = XLSX.utils.aoa_to_sheet(tableData);
-            XLSX.utils.book_append_sheet(wb, wsTable, sheetName);
-          }
-        }
-      });
-    }
-
     try {
       XLSX.writeFile(wb, 'export.xlsx');
 
@@ -407,7 +433,7 @@ export default function WordProcessor() {
       if (truncatedClauses > 0) {
         setError(`Export successful. Note: ${truncatedClauses} clause(s) were truncated due to Excel's 32,767 character limit per cell.`);
         setTimeout(() => setError(null), 5000);
-      } else if (tables.length > 0 || clauses.length > 0) {
+      } else if (clauses.length > 0) {
         setError('Export successful!');
         setTimeout(() => setError(null), 3000);
       }
@@ -843,18 +869,51 @@ export default function WordProcessor() {
                 <Typography variant="h6">
                   {viewMode === 'editor' ? 'Document Editor' : 'Document Viewer'}
                 </Typography>
-                <ToggleButtonGroup
-                  value={viewMode}
-                  exclusive
-                  onChange={(_, newMode) => newMode && setViewMode(newMode)}
-                  size="small"
-                >
-                  <ToggleButton value="clean">View: Clean</ToggleButton>
-                  <ToggleButton value="editor">View: Editor</ToggleButton>
-                </ToggleButtonGroup>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={showPreview}
+                        onChange={(e) => setShowPreview(e.target.checked)}
+                        size="small"
+                      />
+                    }
+                    label="Show Document Preview"
+                  />
+                  <ToggleButtonGroup
+                    value={viewMode}
+                    exclusive
+                    onChange={(_, newMode) => newMode && setViewMode(newMode)}
+                    size="small"
+                  >
+                    <ToggleButton value="clean">View: Clean</ToggleButton>
+                    <ToggleButton value="editor">View: Editor</ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
               </Box>
 
-              {viewMode === 'editor' ? (
+              {!showPreview ? (
+                <Box
+                  sx={{
+                    p: 4,
+                    textAlign: 'center',
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography variant="body1" color="text.secondary">
+                    Document preview is disabled for better performance.
+                    <br />
+                    <Typography variant="caption" component="span">
+                      You can still view clauses in the sidebar and export to Excel.
+                    </Typography>
+                    <br />
+                    <Typography variant="caption" component="span" sx={{ mt: 1, display: 'block' }}>
+                      Enable "Show Document Preview" above to view the document.
+                    </Typography>
+                  </Typography>
+                </Box>
+              ) : viewMode === 'editor' ? (
                 <DocumentEditor
                   html={getCurrentHtml()}
                   clauses={clauses}
@@ -906,13 +965,43 @@ export default function WordProcessor() {
                     variant="outlined"
                     startIcon={<ExportIcon />}
                     onClick={exportToExcel}
-                    disabled={clauses.length === 0 && tables.length === 0}
+                    disabled={clauses.length === 0}
                     size="small"
                   >
                     Export
                   </Button>
                 </Box>
               </Box>
+
+              {clauses.length > 0 && (
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={1} px={1}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={selectedClauseIds.size === clauses.length && clauses.length > 0}
+                        indeterminate={selectedClauseIds.size > 0 && selectedClauseIds.size < clauses.length}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        size="small"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2">
+                        Select All {selectedClauseIds.size > 0 && `(${selectedClauseIds.size} selected)`}
+                      </Typography>
+                    }
+                  />
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<DeleteIcon />}
+                    onClick={handleDeleteSelected}
+                    disabled={selectedClauseIds.size === 0}
+                    size="small"
+                  >
+                    Delete Selected
+                  </Button>
+                </Box>
+              )}
 
               {!documentData && !loading && (
                 <Typography variant="body2" color="text.secondary">
@@ -932,8 +1021,9 @@ export default function WordProcessor() {
                       secondaryAction={
                         <IconButton
                           edge="end"
-                          onClick={() => {
-                            setClauses(clauses.filter(c => c.id !== clause.id));
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClause(clause);
                           }}
                         >
                           <DeleteIcon />
@@ -941,12 +1031,25 @@ export default function WordProcessor() {
                       }
                       sx={{
                         cursor: 'pointer',
+                        backgroundColor: selectedClauseIds.has(clause.id) ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
                         '&:hover': {
-                          backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                          backgroundColor: selectedClauseIds.has(clause.id) 
+                            ? 'rgba(25, 118, 210, 0.12)' 
+                            : 'rgba(0, 0, 0, 0.05)',
                         },
                       }}
                       onClick={() => scrollToClause(clause.paragraphIndex)}
                     >
+                      <Checkbox
+                        checked={selectedClauseIds.has(clause.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleToggleClauseSelection(clause.id);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        size="small"
+                        sx={{ mr: 1 }}
+                      />
                       <ListItemText
                         primary={
                           <Typography variant="subtitle2" fontWeight="bold">
@@ -1017,7 +1120,7 @@ export default function WordProcessor() {
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
             Upload a .docx file to get started. The system will automatically detect
-            Australian NCC / AS / AS-NZS clauses and allow you to mark or unmark them.
+            Australian AS / AS-NZS clauses and allow you to mark or unmark them.
             <br />
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
               Note: .docx format is required. If you have a .doc file, please convert it to .docx first.

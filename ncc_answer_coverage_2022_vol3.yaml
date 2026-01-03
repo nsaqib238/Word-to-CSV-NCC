@@ -1,0 +1,206 @@
+#Routes the question to the correct NCC volume/section/part/schedule
+#Forces the answer to cover the technical aspects that matter for that topic (and refuses if evidence isn't present)
+
+ncc_answer_coverage_map:
+  version: 2022
+
+  global_guardrails:
+    evidence_required: true
+    must_cite:
+      - volume
+      - section_code_or_schedule
+      - unit_label_or_clause_id
+    if_no_evidence_must_say: "NOT FOUND IN NCC EVIDENCE (NO HALLUCINATION)"
+    refuse_if_volume_mismatch: true
+    never_guess_numbers: true
+
+    # =========================
+    # NCC VOLUME 3 — PLUMBING CODE
+    # =========================
+  volumes:
+    - volume: Vol3
+      topics:
+        # Section A - Governing
+        - topic_id: VOL3_A1
+          route:
+            section_code: "A"
+            part_codes: ["A1"]
+            disciplines: ["Governing"]
+        - topic_id: VOL3_A2
+          route:
+            section_code: "A"
+            part_codes: ["A2"]
+            disciplines: ["Governing"]
+        - topic_id: VOL3_A3
+          route:
+            section_code: "A"
+            part_codes: ["A3"]
+            disciplines: ["Governing"]
+
+        # Section B - Cold Water
+        - topic_id: VOL3_B1
+          route:
+            section_code: "B"
+            part_codes: ["B1"]
+            disciplines: ["ColdWater"]
+        - topic_id: VOL3_B2
+          route:
+            section_code: "B"
+            part_codes: ["B2"]
+            disciplines: ["ColdWater"]
+
+        # Section C - Heated Water
+        - topic_id: VOL3_C1
+          route:
+            section_code: "C"
+            part_codes: ["C1"]
+            disciplines: ["HeatedWater"]
+        - topic_id: VOL3_C2
+          route:
+            section_code: "C"
+            part_codes: ["C2"]
+            disciplines: ["HeatedWater"]
+
+        # Section D - Sanitary Plumbing
+        - topic_id: VOL3_D1
+          route:
+            section_code: "D"
+            part_codes: ["D1"]
+            disciplines: ["SanitaryPlumbing"]
+        - topic_id: VOL3_D2
+          route:
+            section_code: "D"
+            part_codes: ["D2"]
+            disciplines: ["SanitaryPlumbing"]
+
+        # Section E - Sanitary Drainage
+        - topic_id: VOL3_E1
+          route:
+            section_code: "E"
+            part_codes: ["E1"]
+            disciplines: ["SanitaryDrainage"]
+        - topic_id: VOL3_E2
+          route:
+            section_code: "E"
+            part_codes: ["E2"]
+            disciplines: ["SanitaryDrainage"]
+
+        # Section F - Stormwater
+        - topic_id: VOL3_F1
+          route:
+            section_code: "F"
+            part_codes: ["F1"]
+            disciplines: ["Stormwater"]
+        - topic_id: VOL3_F2
+          route:
+            section_code: "F"
+            part_codes: ["F2"]
+            disciplines: ["Stormwater"]
+
+        # Section G - Heated Water
+        - topic_id: VOL3_G1
+          route:
+            section_code: "G"
+            part_codes: ["G1"]
+            disciplines: ["HeatedWater"]
+        - topic_id: VOL3_G2
+          route:
+            section_code: "G"
+            part_codes: ["G2"]
+            disciplines: ["HeatedWater"]
+
+        # Section H - Fire Hydrant
+        - topic_id: VOL3_H1
+          route:
+            section_code: "H"
+            part_codes: ["H1"]
+            disciplines: ["FireHydrant"]
+        - topic_id: VOL3_H2
+          route:
+            section_code: "H"
+            part_codes: ["H2"]
+            disciplines: ["FireHydrant"]
+
+        # Section J - Non Drinking Water
+        - topic_id: VOL3_J1
+          route:
+            section_code: "J"
+            part_codes: ["J1"]
+            disciplines: ["NonDrinkingWater"]
+        - topic_id: VOL3_J2
+          route:
+            section_code: "J"
+            part_codes: ["J2"]
+            disciplines: ["NonDrinkingWater"]
+
+        # Section K - Gas
+        - topic_id: VOL3_K1
+          route:
+            section_code: "K"
+            part_codes: ["K1"]
+            disciplines: ["Gas"]
+        - topic_id: VOL3_K2
+          route:
+            section_code: "K"
+            part_codes: ["K2"]
+            disciplines: ["Gas"]
+
+        # Section L - Onsite Wastewater
+        - topic_id: VOL3_L1
+          route:
+            section_code: "L"
+            part_codes: ["L1"]
+            disciplines: ["OnsiteWastewater"]
+        - topic_id: VOL3_L2
+          route:
+            section_code: "L"
+            part_codes: ["L2"]
+            disciplines: ["OnsiteWastewater"]
+
+        # Section M - Swimming Pools
+        - topic_id: VOL3_M1
+          route:
+            section_code: "M"
+            part_codes: ["M1"]
+            disciplines: ["SwimmingPools"]
+        - topic_id: VOL3_M2
+          route:
+            section_code: "M"
+            part_codes: ["M2"]
+            disciplines: ["SwimmingPools"]
+
+        # Section N - Rainwater Tanks
+        - topic_id: VOL3_N1
+          route:
+            section_code: "N"
+            part_codes: ["N1"]
+            disciplines: ["RainwaterTanks"]
+        - topic_id: VOL3_N2
+          route:
+            section_code: "N"
+            part_codes: ["N2"]
+            disciplines: ["RainwaterTanks"]
+
+        # Section O - Mechanical Services
+        - topic_id: VOL3_O1
+          route:
+            section_code: "O"
+            part_codes: ["O1"]
+            disciplines: ["MechanicalServices"]
+        - topic_id: VOL3_O2
+          route:
+            section_code: "O"
+            part_codes: ["O2"]
+            disciplines: ["MechanicalServices"]
+
+        # Section P - Ancillary
+        - topic_id: VOL3_P1
+          route:
+            section_code: "P"
+            part_codes: ["P1"]
+            disciplines: ["Ancillary"]
+        - topic_id: VOL3_P2
+          route:
+            section_code: "P"
+            part_codes: ["P2"]
+            disciplines: ["Ancillary"]

@@ -1,0 +1,228 @@
+#Routes the question to the correct NCC volume/section/part/schedule
+#Forces the answer to cover the technical aspects that matter for that topic (and refuses if evidence isn't present)
+
+ncc_answer_coverage_map:
+  version: 2022
+
+  global_guardrails:
+    evidence_required: true
+    must_cite:
+      - volume
+      - section_code_or_schedule
+      - unit_label_or_clause_id
+    if_no_evidence_must_say: "NOT FOUND IN NCC EVIDENCE (NO HALLUCINATION)"
+    refuse_if_volume_mismatch: true
+    never_guess_numbers: true
+
+  # -------------------------
+  # VOLUME 2 (Class 1 & 10)
+  # -------------------------
+  volumes:
+    - volume: Vol2
+      topics:
+        # Section A - Governing
+        - topic_id: VOL2_A1
+          route:
+            section_code: "A"
+            part_codes: ["A1"]
+            disciplines: ["Governing"]
+        - topic_id: VOL2_A2
+          route:
+            section_code: "A"
+            part_codes: ["A2"]
+            disciplines: ["Governing"]
+        - topic_id: VOL2_A3
+          route:
+            section_code: "A"
+            part_codes: ["A3"]
+            disciplines: ["Governing"]
+        - topic_id: VOL2_A4
+          route:
+            section_code: "A"
+            part_codes: ["A4"]
+            disciplines: ["Governing"]
+
+        # Section B - Structural
+        - topic_id: VOL2_B1
+          route:
+            section_code: "B"
+            part_codes: ["B1"]
+            disciplines: ["Structural"]
+        - topic_id: VOL2_B2
+          route:
+            section_code: "B"
+            part_codes: ["B2"]
+            disciplines: ["Structural"]
+        - topic_id: VOL2_B3
+          route:
+            section_code: "B"
+            part_codes: ["B3"]
+            disciplines: ["Structural"]
+        - topic_id: VOL2_B4
+          route:
+            section_code: "B"
+            part_codes: ["B4"]
+            disciplines: ["Structural"]
+        - topic_id: VOL2_B5
+          route:
+            section_code: "B"
+            part_codes: ["B5"]
+            disciplines: ["Structural"]
+
+        # Section C - Fire
+        - topic_id: VOL2_C1
+          route:
+            section_code: "C"
+            part_codes: ["C1"]
+            disciplines: ["Fire"]
+        - topic_id: VOL2_C2
+          route:
+            section_code: "C"
+            part_codes: ["C2"]
+            disciplines: ["Fire"]
+        - topic_id: VOL2_C3
+          route:
+            section_code: "C"
+            part_codes: ["C3"]
+            disciplines: ["Fire"]
+        - topic_id: VOL2_C4
+          route:
+            section_code: "C"
+            part_codes: ["C4"]
+            disciplines: ["Fire"]
+
+        # Section D - Egress / Disability Access
+        - topic_id: VOL2_D1
+          route:
+            section_code: "D"
+            part_codes: ["D1"]
+            disciplines: ["Egress"]
+        - topic_id: VOL2_D2
+          route:
+            section_code: "D"
+            part_codes: ["D2"]
+            disciplines: ["Egress"]
+        - topic_id: VOL2_D3
+          route:
+            section_code: "D"
+            part_codes: ["D3"]
+            disciplines: ["DisabilityAccess"]
+        - topic_id: VOL2_D4
+          route:
+            section_code: "D"
+            part_codes: ["D4"]
+            disciplines: ["Egress"]
+
+        # Section E - Fire Services / Electrical / Lifts
+        - topic_id: VOL2_E1
+          route:
+            section_code: "E"
+            part_codes: ["E1"]
+            disciplines: ["FireServices"]
+        - topic_id: VOL2_E2
+          route:
+            section_code: "E"
+            part_codes: ["E2"]
+            disciplines: ["FireServices"]
+        - topic_id: VOL2_E3
+          route:
+            section_code: "E"
+            part_codes: ["E3"]
+            disciplines: ["FireServices"]
+        - topic_id: VOL2_E4
+          route:
+            section_code: "E"
+            part_codes: ["E4"]
+            disciplines: ["Electrical"]
+        - topic_id: VOL2_E5
+          route:
+            section_code: "E"
+            part_codes: ["E5"]
+            disciplines: ["Electrical"]
+        - topic_id: VOL2_E6
+          route:
+            section_code: "E"
+            part_codes: ["E6"]
+            disciplines: ["Lifts"]
+        - topic_id: VOL2_E7
+          route:
+            section_code: "E"
+            part_codes: ["E7"]
+            disciplines: ["FireServices"]
+
+        # Section F - Health / Plumbing
+        - topic_id: VOL2_F1
+          route:
+            section_code: "F"
+            part_codes: ["F1"]
+            disciplines: ["Health"]
+        - topic_id: VOL2_F2
+          route:
+            section_code: "F"
+            part_codes: ["F2"]
+            disciplines: ["Plumbing"]
+        - topic_id: VOL2_F3
+          route:
+            section_code: "F"
+            part_codes: ["F3"]
+            disciplines: ["Health"]
+        - topic_id: VOL2_F4
+          route:
+            section_code: "F"
+            part_codes: ["F4"]
+            disciplines: ["Health"]
+        - topic_id: VOL2_F5
+          route:
+            section_code: "F"
+            part_codes: ["F5"]
+            disciplines: ["Health"]
+
+        # Section G - Ancillary
+        - topic_id: VOL2_G1
+          route:
+            section_code: "G"
+            part_codes: ["G1"]
+            disciplines: ["Ancillary"]
+        - topic_id: VOL2_G2
+          route:
+            section_code: "G"
+            part_codes: ["G2"]
+            disciplines: ["Ancillary"]
+        - topic_id: VOL2_G3
+          route:
+            section_code: "G"
+            part_codes: ["G3"]
+            disciplines: ["Ancillary"]
+
+        # Section H - Energy
+        - topic_id: VOL2_H1
+          route:
+            section_code: "H"
+            part_codes: ["H1"]
+            disciplines: ["Energy"]
+        - topic_id: VOL2_H2
+          route:
+            section_code: "H"
+            part_codes: ["H2"]
+            disciplines: ["Energy"]
+        - topic_id: VOL2_H3
+          route:
+            section_code: "H"
+            part_codes: ["H3"]
+            disciplines: ["Energy"]
+        - topic_id: VOL2_H4
+          route:
+            section_code: "H"
+            part_codes: ["H4"]
+            disciplines: ["Energy"]
+        - topic_id: VOL2_H5
+          route:
+            section_code: "H"
+            part_codes: ["H5"]
+            disciplines: ["Energy"]
+        - topic_id: VOL2_H6
+          route:
+            section_code: "H"
+            part_codes: ["H6"]
+            disciplines: ["Energy"]
+

@@ -1,15 +1,7 @@
 /**
  * NCC Processor Component
  *
- * Allows users to upload NCC 2022 DOCX files (Volumes 1, 2, 3)
- * and generate structured CSV files for database loading.
- *
- * Features:
- * - Volume selection (Volume One, Two, Three)
- * - File upload with progress tracking
- * - Real-time processing status
- * - CSV download
- * - Quality gate reporting
+ * Converts NCC DOCX files to Excel with minimal columns
  */
 
 import { useState } from 'react';
@@ -18,7 +10,6 @@ import {
   Paper,
   Typography,
   Button,
-  TextField,
   Alert,
   CircularProgress,
   LinearProgress,
@@ -26,11 +17,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Card,
-  CardContent,
-  Chip,
   Stack,
-  Divider,
 } from '@mui/material';
 import {
   Upload as UploadIcon,
@@ -40,34 +27,25 @@ import {
   Description as DescriptionIcon,
 } from '@mui/icons-material';
 
+type VolumeType = 'Vol1' | 'Vol2' | 'Vol3';
+
 interface ProcessingStats {
   stage: string;
-  progress: number;
   message: string;
-  extractedUnits?: number;
-  fileSize?: string;
-  qualityGates?: string[];
 }
 
 interface NCCResult {
-  csvData: string;
   filename: string;
   stats: {
-    totalUnits: number;
-    unitTypes: Record<string, number>;
-    stateVariations: number;
-    fileSizeMB: number;
+    paragraphs: number;
+    tableCells: number;
+    totalRows: number;
   };
 }
 
-type VolumeType = 'Volume One' | 'Volume Two' | 'Volume Three';
-
 export default function NCCProcessor() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [volume, setVolume] = useState<VolumeType>('Volume Two');
-  const [docId, setDocId] = useState('ncc2022');
-  const [versionDate, setVersionDate] = useState('2022');
-  
+  const [volume, setVolume] = useState<VolumeType>('Vol2');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [processingStats, setProcessingStats] = useState<ProcessingStats | null>(null);
@@ -86,7 +64,7 @@ export default function NCCProcessor() {
     }
   };
 
-  const handleProcess = async () => {
+  const handleProcess = async (format: 'excel' | 'csv' = 'excel') => {
     if (!selectedFile) {
       setError('Please select a file first');
       return;
@@ -94,17 +72,18 @@ export default function NCCProcessor() {
 
     setLoading(true);
     setError(null);
-    setProcessingStats({ stage: 'Uploading...', progress: 0, message: 'Preparing file upload' });
+    setProcessingStats({ stage: 'Uploading...', message: 'Preparing file upload' });
     setResult(null);
 
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('volume', volume);
-      formData.append('docId', docId);
-      formData.append('versionDate', versionDate);
+      formData.append('format', format);
 
-      const response = await fetch('/api/process-ncc', {
+      setProcessingStats({ stage: 'Processing...', message: `Converting DOCX to ${format.toUpperCase()}` });
+
+      const response = await fetch('/api/process-ncc-to-excel', {
         method: 'POST',
         body: formData,
       });
@@ -116,18 +95,37 @@ export default function NCCProcessor() {
 
       const data = await response.json();
       
+      // Convert base64 buffer to blob
+      const binaryString = atob(format === 'csv' ? data.csvBuffer : data.excelBuffer);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      const mimeType = format === 'csv' 
+        ? 'text/csv' 
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      
+      const blob = new Blob([bytes], { type: mimeType });
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = data.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
       setResult({
-        csvData: data.csvData,
         filename: data.filename,
         stats: data.stats,
       });
 
       setProcessingStats({
         stage: 'Complete',
-        progress: 100,
-        message: `Successfully extracted ${data.stats.totalUnits} NCC units`,
-        extractedUnits: data.stats.totalUnits,
-        qualityGates: ['All quality gates passed'],
+        message: `Successfully exported ${data.stats.totalRows} rows (${data.stats.paragraphs} paragraphs, ${data.stats.tableCells} table cells) to ${format.toUpperCase()}`,
       });
 
     } catch (err: any) {
@@ -138,125 +136,40 @@ export default function NCCProcessor() {
     }
   };
 
-  const handleDownload = () => {
-    if (!result) return;
-
-    const blob = new Blob([result.csvData], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', result.filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const getVolumeInfo = (vol: VolumeType) => {
-    const info = {
-      'Volume One': {
-        description: 'Class 2-9 Buildings (Commercial, Industrial, Public)',
-        sections: 'Sections A-H',
-        expectedSize: '~8,000-10,000 units',
-        warning: 'Large file - may require 16GB+ memory',
-      },
-      'Volume Two': {
-        description: 'Class 1 & 10 Buildings (Housing, Sheds)',
-        sections: 'Parts H1-H8',
-        expectedSize: '~4,500-5,000 units',
-        warning: null,
-      },
-      'Volume Three': {
-        description: 'Plumbing Code',
-        sections: 'Sections A-F (Water, Sanitary, Stormwater)',
-        expectedSize: '~5,000-6,000 units',
-        warning: null,
-      },
-    };
-    return info[vol];
-  };
-
-  const volumeInfo = getVolumeInfo(volume);
-
   return (
     <Box>
       {/* Header */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h5" gutterBottom>
-          NCC 2022 Document Processor
+          NCC Processor
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Upload NCC DOCX files and generate structured CSV files with 72-column schema
-          for database loading. Extracts all clause types, state variations, and compliance hierarchies.
+          Convert NCC Volume 1/2/3 Word (.docx) files to Excel with minimal columns.
+          All paragraphs and table cells are extracted to ensure no content is missed.
         </Typography>
       </Paper>
 
       {/* Configuration */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
-          1. Configure Processing
+          1. Select Volume
         </Typography>
         
-        <Stack spacing={3}>
-          {/* Volume Selection */}
-          <FormControl fullWidth>
-            <InputLabel>NCC Volume</InputLabel>
-            <Select
-              value={volume}
-              label="NCC Volume"
-              onChange={(e) => setVolume(e.target.value as VolumeType)}
-            >
-              <MenuItem value="Volume One">Volume One - Class 2-9 Buildings</MenuItem>
-              <MenuItem value="Volume Two">Volume Two - Class 1 & 10 Buildings</MenuItem>
-              <MenuItem value="Volume Three">Volume Three - Plumbing Code</MenuItem>
-            </Select>
-          </FormControl>
+        <FormControl fullWidth sx={{ mb: 3 }}>
+          <InputLabel>NCC Volume</InputLabel>
+          <Select
+            value={volume}
+            label="NCC Volume"
+            onChange={(e) => setVolume(e.target.value as VolumeType)}
+          >
+            <MenuItem value="Vol1">Volume 1 - Class 2-9 Buildings</MenuItem>
+            <MenuItem value="Vol2">Volume 2 - Class 1 & 10 Buildings</MenuItem>
+            <MenuItem value="Vol3">Volume 3 - Plumbing Code</MenuItem>
+          </Select>
+        </FormControl>
 
-          {/* Volume Info Card */}
-          <Card variant="outlined">
-            <CardContent>
-              <Typography variant="subtitle2" color="primary" gutterBottom>
-                {volume}
-              </Typography>
-              <Typography variant="body2" paragraph>
-                {volumeInfo.description}
-              </Typography>
-              <Stack direction="row" spacing={1} mb={1}>
-                <Chip label={volumeInfo.sections} size="small" />
-                <Chip label={volumeInfo.expectedSize} size="small" color="info" />
-              </Stack>
-              {volumeInfo.warning && (
-                <Alert severity="warning" sx={{ mt: 1 }}>
-                  {volumeInfo.warning}
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Document ID and Version */}
-          <Stack direction="row" spacing={2}>
-            <TextField
-              label="Document ID"
-              value={docId}
-              onChange={(e) => setDocId(e.target.value)}
-              fullWidth
-              helperText="e.g., ncc2022"
-            />
-            <TextField
-              label="Version Year"
-              value={versionDate}
-              onChange={(e) => setVersionDate(e.target.value)}
-              fullWidth
-              helperText="e.g., 2022"
-            />
-          </Stack>
-        </Stack>
-      </Paper>
-
-      {/* File Upload */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
+        {/* File Upload */}
+        <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
           2. Upload NCC DOCX File
         </Typography>
         
@@ -290,23 +203,40 @@ export default function NCCProcessor() {
         </Box>
       </Paper>
 
-      {/* Process Button */}
+      {/* Export Options */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
-          3. Generate CSV
+          3. Export Options
         </Typography>
         
-        <Button
-          variant="contained"
-          color="primary"
-          size="large"
-          fullWidth
-          onClick={handleProcess}
-          disabled={!selectedFile || loading}
-          startIcon={loading ? <CircularProgress size={20} /> : <CheckCircleIcon />}
-        >
-          {loading ? 'Processing...' : 'Process NCC Document'}
-        </Button>
+        <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+          <Button
+            variant="contained"
+            onClick={() => handleProcess('excel')}
+            disabled={!selectedFile || loading}
+            startIcon={loading ? <CircularProgress size={20} /> : <CheckCircleIcon />}
+            fullWidth
+          >
+            Export to Excel
+          </Button>
+          
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={() => handleProcess('csv')}
+            disabled={!selectedFile || loading}
+            startIcon={loading ? <CircularProgress size={20} /> : <DownloadIcon />}
+            fullWidth
+          >
+            Export to CSV
+          </Button>
+        </Stack>
+        
+        {!selectedFile && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Please select a DOCX file first
+          </Alert>
+        )}
 
         {loading && processingStats && (
           <Box sx={{ mt: 3 }}>
@@ -332,90 +262,65 @@ export default function NCCProcessor() {
       {result && (
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom color="success.main">
-            ✅ Processing Complete
+            ✅ Conversion Complete
           </Typography>
           
-          <Divider sx={{ my: 2 }} />
-
-          {/* Stats */}
-          <Stack spacing={2} mb={3}>
+          <Stack spacing={2} mt={2}>
             <Box>
               <Typography variant="subtitle2" color="text.secondary">
-                Total NCC Units Extracted
+                Total Rows Exported
               </Typography>
               <Typography variant="h4" color="primary">
-                {result.stats.totalUnits.toLocaleString()}
+                {result.stats.totalRows.toLocaleString()}
               </Typography>
             </Box>
-
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Unit Type Breakdown
-              </Typography>
-              <Stack direction="row" flexWrap="wrap" gap={1}>
-                {Object.entries(result.stats.unitTypes)
-                  .sort((a, b) => b[1] - a[1])
-                  .slice(0, 10)
-                  .map(([type, count]) => (
-                    <Chip
-                      key={type}
-                      label={`${type}: ${count}`}
-                      size="small"
-                      variant="outlined"
-                    />
-                  ))}
-              </Stack>
-            </Box>
-
-            {result.stats.stateVariations > 0 && (
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">
-                  State Variations
-                </Typography>
-                <Typography variant="h6">
-                  {result.stats.stateVariations}
-                </Typography>
-              </Box>
-            )}
 
             <Box>
               <Typography variant="subtitle2" color="text.secondary">
-                CSV File Size
+                Paragraphs
+              </Typography>
+              <Typography variant="h6">
+                {result.stats.paragraphs.toLocaleString()}
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">
+                Table Cells
+              </Typography>
+              <Typography variant="h6">
+                {result.stats.tableCells.toLocaleString()}
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">
+                Output File
               </Typography>
               <Typography variant="body1">
-                {result.stats.fileSizeMB.toFixed(2)} MB
+                {result.filename}
               </Typography>
             </Box>
           </Stack>
-
-          {/* Download Button */}
-          <Button
-            variant="contained"
-            color="success"
-            size="large"
-            fullWidth
-            startIcon={<DownloadIcon />}
-            onClick={handleDownload}
-          >
-            Download {result.filename}
-          </Button>
         </Paper>
       )}
 
       {/* Help Section */}
       <Paper sx={{ p: 3, bgcolor: 'grey.50' }}>
         <Typography variant="subtitle2" gutterBottom>
-          📖 Processing Information
+          📖 Excel Output Columns
         </Typography>
-        <Typography variant="body2" color="text.secondary" paragraph>
-          • <strong>Volume 2 (3.4 MB)</strong>: ~90 seconds processing time<br />
-          • <strong>Volume 3 (3.8 MB)</strong>: ~100 seconds processing time<br />
-          • <strong>Volume 1 (7.2 MB)</strong>: May timeout in browser - use command-line script<br />
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          The generated CSV contains 72 columns including unit labels, types, compliance weights,
-          text content, state variations, and hierarchical relationships. Ready for direct import
-          into PostgreSQL or MySQL databases.
+        <Typography variant="body2" color="text.secondary" component="div">
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            <li><strong>volume</strong> - Vol1, Vol2, or Vol3</li>
+            <li><strong>row_type</strong> - paragraph or table_cell</li>
+            <li><strong>heading_level</strong> - H1, H2, H3, H4, or blank</li>
+            <li><strong>heading_text</strong> - Heading text (if applicable)</li>
+            <li><strong>unit_type</strong> - PERFORMANCE_REQUIREMENT, DTS_PROVISION, VERIFICATION_METHOD, EVIDENCE_OF_SUITABILITY, DEFINITION, or OTHER</li>
+            <li><strong>clause_ref</strong> - Extracted clause reference (e.g., H4D3, P2.1) or blank</li>
+            <li><strong>text</strong> - The actual content text</li>
+            <li><strong>source_location</strong> - Paragraph index or table location for tracing</li>
+          </ul>
         </Typography>
       </Paper>
     </Box>
